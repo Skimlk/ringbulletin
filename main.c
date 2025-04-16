@@ -8,12 +8,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "fetch.h"
-//#include "loadjson.h"
 #include <cjson/cJSON.h>
+#include "fetch.h"
+#include "loadjson.h"
 
 #define PROGRAM_TITLE "ringbulletin"
-#define CONFIG_PATH "./config.json"
+#define CONFIG_PATH "config.json"
 
 void printUsage() {
 	printf("\nUsage: %s [OPTION]...\n\n", PROGRAM_TITLE);
