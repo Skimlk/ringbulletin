@@ -4,18 +4,18 @@
 #include <cjson/cJSON.h>
 
 char *readFile(const char *path) {
-	struct stat fileStat;
-	if(stat(path, &fileStat) == -1) {
-		printf("Error reading file status.\n");
-		return NULL;
-	}
-
 	FILE *file = fopen(path, "rb");
 	if(!file) {
-		printf("Error opening file.\n");
+		printf("Error opening file '%s'.\n", path);
 		return NULL;
 	}	
 	
+	struct stat fileStat;
+	if(stat(path, &fileStat) == -1) {
+		printf("Error reading file '%s' status.\n", path);
+		return NULL;
+	}
+
 	char *fileContents = (char*)malloc(fileStat.st_size + 1);
 	size_t bytesRead = fread(fileContents, 1, fileStat.st_size, file);
 	fclose(file);
@@ -25,10 +25,12 @@ char *readFile(const char *path) {
 	return fileContents;
 }
 
-cJSON *loadJSON(const char *path) {
+cJSON *loadJson(const char *path) {
 	char *fileContents = readFile(path);
-	if(!fileContents) 
+	if(!fileContents) {
 		return NULL;
+	}
+	
 	printf("%s", fileContents);
 
 	cJSON *json = cJSON_Parse(fileContents);

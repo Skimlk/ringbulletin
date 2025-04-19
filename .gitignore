@@ -1,2 +1,4 @@
-./ringbulletin
-./config.json
+ringbulletin
+config.json
+board.json
+src/*.o

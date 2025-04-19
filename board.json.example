@@ -1,0 +1,11 @@
+{
+	"title": "Board Title",
+	"feeds": [
+		"https://example.com/rss.xml",
+		"https://example.net/rss"
+	],
+	"peers": [
+		"https://example.com/bulletin/board.json",
+		"https://example.net/board.json"
+	]
+}

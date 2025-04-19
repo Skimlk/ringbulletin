@@ -1,18 +1,15 @@
-CC?=gcc
+CC ?= gcc
+CFLAGS ?= -Wall -Wextra -I/usr/include/libxml2/
+SRC := $(wildcard src/*.c)
+OBJ := $(SRC:.c=.o)
 
-all: ringbulletin clean
+all: ringbulletin
 
-ringbulletin: main.o loadjson.o fetch.o
-	$(CC) main.o loadjson.o fetch.o -o ringbulletin -lcjson -lcurl -lxml2 -I/usr/include/libxml2/
+ringbulletin: $(OBJ)
+	$(CC) $(OBJ) -o $@ -lcjson -lcurl -lxml2 $(CFLAGS)
 
-main.o: main.c
-	$(CC) -c main.c
-
-loadjson.o: loadjson.c loadjson.h
-	$(CC) -c loadjson.c
-
-fetch.o: fetch.c fetch.h
-	$(CC) -c fetch.c
+%.o: %.c
+	$(CC) -c $< -o $@ $(CFLAGS)
 
 clean:
-	rm -f *.o 
+	rm -f src/*.o ringbulletin

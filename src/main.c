@@ -10,7 +10,8 @@
 #include <unistd.h>
 #include <cjson/cJSON.h>
 #include "fetch.h"
-#include "loadjson.h"
+#include "jsonutils.h"
+#include "config.h"
 
 #define PROGRAM_TITLE "ringbulletin"
 #define CONFIG_PATH "config.json"
@@ -45,6 +46,16 @@ int main(int argc, char **argv) {
 				abort();
 		}
 	}
+
+	cJSON *configJson = loadJson(CONFIG_PATH);
 	
+	if(!configJson) {
+		return 1;
+	}
+
+	ConfigValues configValues;
+	if(loadConfigValues(configJson, &configValues))
+		printError("Unable to load config values.");
+
 	return 0;
 }

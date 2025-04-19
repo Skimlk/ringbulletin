@@ -1,3 +1,5 @@
 {
-	"name": "My Board"
+	"maxTitleLength": 16,
+	"maxDescriptionLength": 350,
+	"searchDepth": 4
 }
