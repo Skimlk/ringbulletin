@@ -46,7 +46,5 @@ char *fetch(char *URL) {
 	curl_easy_cleanup(handle);
 	curl_global_cleanup();
 
-	free(chunk.memory);
-	
 	return document;
 }

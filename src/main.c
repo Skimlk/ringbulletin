@@ -50,6 +50,7 @@ void searchBoard(cJSON *board, cJSON *searchHistory, ConfigValues *configValues,
 			if(feed) {
 				printf("Fetched feed at '%s'.\n", feedUrl->valuestring);
 				/* Iterate through feed */
+				free(feed);
 			} else {
 				printf("Couldn't fetch feed at '%s'.\n", feedUrl->valuestring);
 			}
@@ -58,14 +59,17 @@ void searchBoard(cJSON *board, cJSON *searchHistory, ConfigValues *configValues,
 
 	// Scan Peers
 	cJSON *peers = cJSON_GetObjectItemCaseSensitive(board, "peers");
-	cJSON *peerBoard = NULL;
+	char *peerBoard;
+	cJSON *peerBoardJson = NULL;
 	cJSON *peer = NULL;	
 
 	if(peers && configValues->searchDepth >= currentDepth) {
 		cJSON_ArrayForEach(peer, peers) {
-			peerBoard = cJSON_Parse(fetch(peer->valuestring));
-			if(peerBoard) {
-				searchBoard(peerBoard, searchHistory, configValues, options, currentDepth+1);
+			peerBoard = fetch(peer->valuestring);
+			peerBoardJson = cJSON_Parse(peerBoard);
+			free(peerBoard);
+			if(peerBoardJson) {
+				searchBoard(peerBoardJson, searchHistory, configValues, options, currentDepth+1);
 			} else {
 				printf("Couldn't fetch feed at '%s'.\n", peer->valuestring);
 			}
@@ -78,6 +82,7 @@ void searchBoard(cJSON *board, cJSON *searchHistory, ConfigValues *configValues,
 
 int main(int argc, char **argv) {
 	cJSON *configJson;
+	cJSON *boardJson;
 	cJSON *searchHistory;
 	int ret = 0;
 	Options options = {0};
@@ -100,7 +105,8 @@ int main(int argc, char **argv) {
 	configJson = loadJson(CONFIG_PATH);
 	
 	if(!configJson) {
-		return 1;
+		ret = 1;
+		goto cleanup;
 	}
 
 	ConfigValues configValues;
@@ -117,11 +123,21 @@ int main(int argc, char **argv) {
 		searchHistory = cJSON_CreateObject();	
 	}
 
+	// Load board file
+	boardJson = loadJson(configValues.boardJsonPath);
+
+	if(!boardJson) {
+		printError("Unable to load board values.");
+		ret = 1;
+		goto cleanup;
+	}
+
 	// Search Boards and Feeds
 	searchBoard(loadJson(configValues.boardJsonPath), searchHistory, &configValues, &options, 0);
 
 cleanup:
 	cJSON_Delete(configJson);
+	cJSON_Delete(boardJson);
 	cJSON_Delete(searchHistory);
 	return ret;
 }
