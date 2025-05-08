@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <cjson/cJSON.h>
@@ -6,13 +7,13 @@
 char *readFile(const char *path) {
 	FILE *file = fopen(path, "rb");
 	if(!file) {
-		printf("Error opening file '%s'.\n", path);
+		printf("Could not open file '%s'.\n", path);
 		return NULL;
 	}	
 	
 	struct stat fileStat;
 	if(stat(path, &fileStat) == -1) {
-		printf("Error reading file '%s' status.\n", path);
+		printf("Could not get file '%s' status.\n", path);
 		return NULL;
 	}
 
@@ -30,8 +31,6 @@ cJSON *loadJson(const char *path) {
 	if(!fileContents) {
 		return NULL;
 	}
-	
-	printf("%s", fileContents);
 
 	cJSON *json = cJSON_Parse(fileContents);
 	free(fileContents);
@@ -47,3 +46,16 @@ cJSON *loadJson(const char *path) {
 
 	return json;
 }
+
+/*int writeJson(cJSON *json, char *path) {
+	char *jsonData = cJSON_Print(json);
+	
+	if(!jsonData) {
+		fprintf(stderr, "Unable to export data for %s.\n", path);
+		return 1;
+	}
+	
+	FILE *fptr = fopen(strcmp("filename.txt", "w"));
+
+	return 0;
+}*/

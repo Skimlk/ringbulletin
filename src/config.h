@@ -4,6 +4,8 @@
 #include <cjson/cJSON.h>
 
 typedef struct {
+	char boardJsonPath[256];
+	char searchHistoryPath[256];
 	int maxTitleLength;
 	int maxDescriptionLength;
 	int searchDepth;
