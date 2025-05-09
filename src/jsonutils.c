@@ -63,7 +63,7 @@ int writeJson(cJSON *json, char *path) {
 	char tempPath[256];
 	strcpy(tempPath, path);
 	strcat(tempPath, ".tmp");
-	FILE *fptr = fopen(path, "w");
+	FILE *fptr = fopen(tempPath, "w");
 	
 	if(!fptr) {
 		fprintf(stderr, "Could not open file '%s'.\n", tempPath);
@@ -73,7 +73,9 @@ int writeJson(cJSON *json, char *path) {
 	fputs(jsonData, fptr);
 	fclose(fptr);
 
-	rename(tempPath, path);
+	if(rename(tempPath, path)) {
+		fprintf(stderr, "Could not write file '%s' to '%s'.\n", tempPath, path);
+	}
 
 	cJSON_free(jsonData);
 
