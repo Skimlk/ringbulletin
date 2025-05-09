@@ -47,15 +47,35 @@ cJSON *loadJson(const char *path) {
 	return json;
 }
 
-/*int writeJson(cJSON *json, char *path) {
+int writeJson(cJSON *json, char *path) {
 	char *jsonData = cJSON_Print(json);
 	
 	if(!jsonData) {
-		fprintf(stderr, "Unable to export data for %s.\n", path);
+		fprintf(stderr, "Unable to export data for file '%s'.\n", path);
 		return 1;
 	}
+
+	if(strlen(path) > 251) {
+		fprintf(stderr, "Filename '%s' is too long.\n", path);
+		return 1;
+	}
+
+	char tempPath[256];
+	strcpy(tempPath, path);
+	strcat(tempPath, ".tmp");
+	FILE *fptr = fopen(path, "w");
 	
-	FILE *fptr = fopen(strcmp("filename.txt", "w"));
+	if(!fptr) {
+		fprintf(stderr, "Could not open file '%s'.\n", tempPath);
+		return 1;
+	}
+
+	fputs(jsonData, fptr);
+	fclose(fptr);
+
+	rename(tempPath, path);
+
+	cJSON_free(jsonData);
 
 	return 0;
-}*/
+}

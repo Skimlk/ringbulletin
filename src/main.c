@@ -9,9 +9,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <time.h>
+
 #include <cjson/cJSON.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
+
 #include "fetch.h"
 #include "jsonutils.h"
 #include "config.h"
@@ -71,7 +74,7 @@ void searchBoard(cJSON *board, cJSON *searchHistory, ConfigValues *configValues,
 			if(peerBoardJson) {
 				searchBoard(peerBoardJson, searchHistory, configValues, options, currentDepth+1);
 			} else {
-				printf("Couldn't fetch feed at '%s'.\n", peer->valuestring);
+				printf("Couldn't fetch board at '%s'.\n", peer->valuestring);
 			}
 		}
 		
@@ -116,6 +119,8 @@ int main(int argc, char **argv) {
 		goto cleanup;
 	}
 
+	printf("Loaded config '%s'.\n", CONFIG_PATH);
+
 	// Load search history file
 	searchHistory = loadJson(configValues.searchHistoryPath);
 
@@ -133,11 +138,17 @@ int main(int argc, char **argv) {
 	}
 
 	// Search Boards and Feeds
-	searchBoard(loadJson(configValues.boardJsonPath), searchHistory, &configValues, &options, 0);
+	searchBoard(boardJson, searchHistory, &configValues, &options, 0);
+
+	// Write History
+	if(writeJson(searchHistory, configValues.searchHistoryPath)) {
+		printError("Unable to write history.");
+		ret = 1;
+		goto cleanup;
+	}
 
 cleanup:
 	cJSON_Delete(configJson);
-	cJSON_Delete(boardJson);
 	cJSON_Delete(searchHistory);
 	return ret;
 }

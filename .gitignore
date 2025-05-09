@@ -1,4 +1,5 @@
 ringbulletin
 config.json
 board.json
+history.json
 src/*.o
