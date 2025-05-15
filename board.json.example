@@ -1,8 +1,8 @@
 {
 	"title": "Board Title",
 	"feeds": [
-		"https://example.com/rss.xml",
-		"https://example.net/rss"
+		"https://kimak.neocities.org/index.xml",
+		"https://www.w3schools.com/xml/guestbook.asp"
 	],
 	"peers": [
 		"https://example.com/bulletin/board.json",

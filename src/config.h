@@ -1,16 +1,17 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include <cjson/cJSON.h>
+#include "fileutils.h"
 
 typedef struct {
-	char boardJsonPath[256];
-	char searchHistoryPath[256];
+	char boardGenerationDirectory[PATH_MAX];
+	char boardJsonPath[PATH_MAX];
+	char searchHistoryPath[PATH_MAX];
 	int maxTitleLength;
 	int maxDescriptionLength;
 	int searchDepth;
 } ConfigValues;
 
-extern int loadConfigValues(const cJSON *configJson, ConfigValues *configValues);
+extern int loadConfig(char *configPath, ConfigValues *configValues);
 
 #endif

@@ -6,7 +6,7 @@ OBJ := $(SRC:.c=.o)
 all: ringbulletin
 
 ringbulletin: $(OBJ)
-	$(CC) $(OBJ) -o $@ -lcjson -lcurl -lxml2 $(CFLAGS)
+	$(CC) $(OBJ) -o $@ -lcjson -lcurl -lxml2 -lxxhash $(CFLAGS)
 
 %.o: %.c
 	$(CC) -c $< -o $@ $(CFLAGS)

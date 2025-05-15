@@ -9,14 +9,14 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
-#include <time.h>
 
 #include <cjson/cJSON.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
+#include <libxml/xpath.h>
 
 #include "fetch.h"
-#include "jsonutils.h"
+#include "fileutils.h"
 #include "config.h"
 
 #define PROGRAM_TITLE "ringbulletin"
@@ -25,6 +25,12 @@
 typedef struct {
 	int reload;
 } Options;
+
+typedef struct {
+	ConfigValues *configValues;
+	Options *options;
+	cJSON *searchHistory;
+} Context;
 
 void printUsage() {
 	printf("\nUsage: %s [OPTION]...\n\n", PROGRAM_TITLE);
@@ -41,7 +47,53 @@ void printError(char *msg) {
 	fprintf(stderr, "%s: error: %s\n", PROGRAM_TITLE, msg);
 }
 
-void searchBoard(cJSON *board, cJSON *searchHistory, ConfigValues *configValues, Options *options, int currentDepth) {
+void processFeed(char *feed, Context *ctx, char *url) {
+	/*	 
+		- WIP
+		- Get postdata and put it in struct
+		- For Each Post in Posts
+			-if(!options->reload || options->reload && {postdate > lastSearched})
+				WritePost();
+	*/
+	PostData post;
+	xmlDocPtr doc;
+	xmlNodePtr cur;
+
+	// Setup Feed
+	doc = xmlReadMemory(feed, strlen(feed), NULL, NULL, 0);	
+	if (!doc) {
+		fprintf(stderr, "Document not parsed successfully.\n");
+		return;
+	}
+	
+	cur = xmlDocGetRootElement(doc);
+
+	if (cur == NULL) {
+		fprintf(stderr,"empty document\n");
+		xmlFreeDoc(doc);
+		return;
+	}
+
+	if (xmlStrcmp(cur->name, (const xmlChar *) "rss")) {
+		fprintf(stderr,"document of the wrong type, root node != rss\n");
+		xmlFreeDoc(doc);
+		return;
+	}
+
+	// Iterate Through Posts (Testing)
+	xmlChar *keyword;
+	xmlXPathContextPtr context = xmlXPathNewContext(doc);
+	xmlXPathObjectPtr result = xmlXPathEvalExpression((const xmlChar *)"//item/title", context);
+	for (int i=0; i < result->nodesetval->nodeNr; i++) { 
+		keyword = xmlNodeListGetString(doc, result->nodesetval->nodeTab[i]->xmlChildrenNode, 0);
+		printf("keyword: %s\n", keyword);
+		post.title = keyword;
+		writePost(&post, ctx->configValues->boardGenerationDirectory);
+		xmlFree(keyword);
+	}
+}
+
+void searchBoard(cJSON *board, Context *ctx, int currentDepth) {
 	// Scan Feeds
 	cJSON *feedUrls = cJSON_GetObjectItemCaseSensitive(board, "feeds");
 	cJSON *feedUrl = NULL;
@@ -52,7 +104,7 @@ void searchBoard(cJSON *board, cJSON *searchHistory, ConfigValues *configValues,
 			feed = fetch(feedUrl->valuestring);
 			if(feed) {
 				printf("Fetched feed at '%s'.\n", feedUrl->valuestring);
-				/* Iterate through feed */
+				processFeed(feed, ctx, feedUrl->valuestring);
 				free(feed);
 			} else {
 				printf("Couldn't fetch feed at '%s'.\n", feedUrl->valuestring);
@@ -66,13 +118,13 @@ void searchBoard(cJSON *board, cJSON *searchHistory, ConfigValues *configValues,
 	cJSON *peerBoardJson = NULL;
 	cJSON *peer = NULL;	
 
-	if(peers && configValues->searchDepth >= currentDepth) {
+	if(peers && ctx->configValues->searchDepth >= currentDepth) {
 		cJSON_ArrayForEach(peer, peers) {
 			peerBoard = fetch(peer->valuestring);
 			peerBoardJson = cJSON_Parse(peerBoard);
 			free(peerBoard);
 			if(peerBoardJson) {
-				searchBoard(peerBoardJson, searchHistory, configValues, options, currentDepth+1);
+				searchBoard(peerBoardJson, ctx, currentDepth+1);
 			} else {
 				printf("Couldn't fetch board at '%s'.\n", peer->valuestring);
 			}
@@ -105,21 +157,9 @@ int main(int argc, char **argv) {
 	}
 
 	// Load Config
-	configJson = loadJson(CONFIG_PATH);
-	
-	if(!configJson) {
-		ret = 1;
-		goto cleanup;
-	}
-
 	ConfigValues configValues;
-	if(loadConfigValues(configJson, &configValues)) {
-		printError("Unable to load config values.");
-		ret = 1;
-		goto cleanup;
-	}
-
-	printf("Loaded config '%s'.\n", CONFIG_PATH);
+	if(loadConfig(CONFIG_PATH, &configValues))
+		return 1;
 
 	// Load search history file
 	searchHistory = loadJson(configValues.searchHistoryPath);
@@ -138,7 +178,8 @@ int main(int argc, char **argv) {
 	}
 
 	// Search Boards and Feeds
-	searchBoard(boardJson, searchHistory, &configValues, &options, 0);
+	Context ctx = { &configValues, &options, searchHistory };
+	searchBoard(boardJson, &ctx, 0);
 
 	// Write History
 	if(writeJson(searchHistory, configValues.searchHistoryPath)) {
@@ -148,7 +189,6 @@ int main(int argc, char **argv) {
 	}
 
 cleanup:
-	cJSON_Delete(configJson);
 	cJSON_Delete(searchHistory);
 	return ret;
 }
