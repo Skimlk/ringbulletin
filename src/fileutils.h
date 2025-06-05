@@ -11,6 +11,9 @@
 
 typedef struct {
 	char *title;
+	char *link;
+	char *pubDate;
+	char *description;
 } PostData;
 
 extern cJSON *loadJson(const char *path);

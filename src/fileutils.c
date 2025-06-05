@@ -1,10 +1,15 @@
+#define __USE_XOPEN
+#define _GNU_SOURCE
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <stdint.h>
+#include <dirent.h> 
 
+#include <libxml/HTMLtree.h>
 #include <cjson/cJSON.h>
 #include "xxhash.h"
 
@@ -33,7 +38,12 @@ char *readFile(const char *path) {
 	return fileContents;
 }
 
-int writeFile(const char *content, const char *directory, const char *filename) {
+int writeFile(const char *content, const int *size, const char *directory, const char *filename) {
+	if(!content) {
+		fprintf(stderr, "Content is null or empty.\n", filename);
+		return 1;
+	}
+
 	if(strlen(filename) >= BASE_NAME_MAX) {
 		fprintf(stderr, "Filename '%s' is too long.\n", filename);
 		return 1;
@@ -55,13 +65,18 @@ int writeFile(const char *content, const char *directory, const char *filename) 
 	snprintf(tempPath, PATH_MAX, "%s%s", path, TEMP_NAME_EXT);
 
 	FILE *fptr = fopen(tempPath, "w");
-	
+
 	if(!fptr) {
 		fprintf(stderr, "Could not open file '%s'.\n", tempPath);
 		return 1;
 	}
 
-	fputs(content, fptr);
+	if(size) {
+		fwrite(content, 1, *size, fptr);
+	} else { 
+		fputs(content, fptr);
+	}
+
 	fclose(fptr);
 
 	if(rename(tempPath, path)) {
@@ -95,13 +110,13 @@ cJSON *loadJson(const char *path) {
 
 int writeJson(const cJSON *json, const char *path) {
 	char *jsonData = cJSON_Print(json);
-	
+
 	if(!jsonData) {
 		fprintf(stderr, "Unable to export data for file '%s'.\n", path);
 		return 1;
 	}
 
-	writeFile(jsonData, 0, path);
+	writeFile(jsonData, 0, 0, path);
 
 	cJSON_free(jsonData);
 
@@ -109,19 +124,113 @@ int writeJson(const cJSON *json, const char *path) {
 }
 
 int writePost(const PostData *post, const char *directory) {
-	char *htmlExtension = ".html";
 	char normalizedTitle[strlen(post->title)+1];
 	strcpy(normalizedTitle, strip(strlwr(post->title)));
 
 	XXH64_hash_t titleHash = XXH64(normalizedTitle, strlen(normalizedTitle), 0);
-	time_t now = time(NULL);
+
+	struct tm tm = {0};
+
+	if (strptime(post->pubDate, "%a, %d %b %Y %H:%M:%S %z", &tm) == NULL) {
+		fprintf(stderr, "Failed to parse date-time.\n");
+		return 1;
+	}
+
+	time_t now = mktime(&tm);
 
 	char filename[64];
 
-	snprintf(filename, sizeof(filename), "%ld_%016llu%s",
-		 (long)now, (unsigned long long)titleHash, htmlExtension);
+	snprintf(filename, sizeof(filename), "%ld_%016llu.html",
+		 (long)now, (unsigned long long)titleHash);
 
-	writeFile(post->title, directory, filename);
+	htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
+
+	xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
+	xmlDocSetRootElement(doc, html);
+
+	xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
+	xmlNewChild(head, NULL, BAD_CAST "title", BAD_CAST "Sample HTML Page");
+
+	xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
+	xmlNewChild(body, NULL, BAD_CAST "h2", BAD_CAST post->title);
+	xmlNewChild(body, NULL, BAD_CAST "p", BAD_CAST post->link);
+
+	xmlChar *postSerialized;
+	int size = 0;
+	htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1);
+
+	if(!postSerialized) {
+		printf("postSerialized is empthy\n");
+	}
+
+	writeFile((const char *)postSerialized, &size, directory, filename);
+
+	return 0;
+}
+
+int countFiles(const char *path) {
+	DIR *d = opendir(path);
+	struct dirent *dir;
+	int count = 0;
+	if (!d) return -1;
+
+	while ((dir = readdir(d)) != NULL) {
+		if (dir->d_name[0] != '.') count++;
+	}
+
+	closedir(d);
+	return count;
+}
+
+int compare(const void *a, const void *b) {
+	return strcmp(*(const char **)b, *(const char **)a);
+}
+
+int writeBulletin() {
+	//If not reloading
+	DIR *d;
+	struct dirent *dir;
+	char *filenames[countFiles("./static/posts")];  // Adjust size as needed
+	int count = 0;
+
+	d = opendir("./static/posts");
+	if (d) {
+		while ((dir = readdir(d)) != NULL) {
+			if (dir->d_name[0] != '.'){ 
+				filenames[count] = strdup(dir->d_name);
+				count++;
+			}
+		}
+		closedir(d);
+
+		qsort(filenames, count, sizeof(char *), compare);
+
+		htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
+		xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
+		xmlDocSetRootElement(doc, html);
+		xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
+			
+		for (int i = 0; i < count; i++) {
+			xmlNodePtr iframe = xmlNewChild(body, NULL, BAD_CAST "iframe", NULL);
+			char iframePath[BASE_PATH_MAX];
+			printf("%s\n", filenames[i]);
+			snprintf(iframePath, sizeof(iframePath), "./posts/%s", filenames[i]);
+			xmlNewProp(iframe, BAD_CAST "src", BAD_CAST iframePath);
+			xmlNewChild(body, NULL, BAD_CAST "br", NULL);
+
+			free(filenames[i]);  // Free allocated memory
+		}
+		
+		xmlChar *postSerialized;
+		int size = 0;
+		htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1);
+
+		if(!postSerialized) {
+			printf("postSerialized is empthy\n");
+		}
+
+		writeFile((const char *)postSerialized, &size, "./static/", "board.html");
+	}
 
 	return 0;
 }

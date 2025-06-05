@@ -27,7 +27,7 @@ typedef struct {
 } Options;
 
 typedef struct {
-	ConfigValues *configValues;
+	ConfigValues *config;
 	Options *options;
 	cJSON *searchHistory;
 } Context;
@@ -83,13 +83,34 @@ void processFeed(char *feed, Context *ctx, char *url) {
 	// Iterate Through Posts (Testing)
 	xmlChar *keyword;
 	xmlXPathContextPtr context = xmlXPathNewContext(doc);
-	xmlXPathObjectPtr result = xmlXPathEvalExpression((const xmlChar *)"//item/title", context);
-	for (int i=0; i < result->nodesetval->nodeNr; i++) { 
-		keyword = xmlNodeListGetString(doc, result->nodesetval->nodeTab[i]->xmlChildrenNode, 0);
-		printf("keyword: %s\n", keyword);
-		post.title = keyword;
-		writePost(&post, ctx->configValues->boardGenerationDirectory);
-		xmlFree(keyword);
+	xmlXPathObjectPtr itemNodes = xmlXPathEvalExpression((const xmlChar *)"//item", context);
+	xmlNodePtr itemNode;		
+
+	for (int i=0; i < itemNodes->nodesetval->nodeNr; i++) { 
+		xmlNodePtr itemNode = itemNodes->nodesetval->nodeTab[i];
+		for (xmlNodePtr child = itemNode->children; child != NULL; child = child->next) {
+			xmlChar *element = xmlNodeListGetString(doc, child->children, 0);
+			
+			if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"title") == 0) {
+				printf("Title: %s\n", element);
+				post.title = strdup(element);
+			}
+
+			else if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"link") == 0) {
+				printf("Link: %s\n", element);
+				post.link = strdup(element);
+			}
+
+			else if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"pubDate") == 0) {
+				printf("pubDate: %s\n", element);
+				post.pubDate = strdup(element);
+			}
+
+			xmlFree(element);
+		}
+
+		writePost(&post, ctx->config->boardGenerationDirectory);
+		//xmlFree(keyword);
 	}
 }
 
@@ -118,7 +139,7 @@ void searchBoard(cJSON *board, Context *ctx, int currentDepth) {
 	cJSON *peerBoardJson = NULL;
 	cJSON *peer = NULL;	
 
-	if(peers && ctx->configValues->searchDepth >= currentDepth) {
+	if(peers && ctx->config->searchDepth >= currentDepth) {
 		cJSON_ArrayForEach(peer, peers) {
 			peerBoard = fetch(peer->valuestring);
 			peerBoardJson = cJSON_Parse(peerBoard);
@@ -151,25 +172,25 @@ int main(int argc, char **argv) {
 			case 'h':
 				printHelpText();
 				return 0;
-			defualt:
+			default:
 				abort();
 		}
 	}
 
 	// Load Config
-	ConfigValues configValues;
-	if(loadConfig(CONFIG_PATH, &configValues))
+	ConfigValues config;
+	if(loadConfig(CONFIG_PATH, &config))
 		return 1;
 
 	// Load search history file
-	searchHistory = loadJson(configValues.searchHistoryPath);
+	searchHistory = loadJson(config.searchHistoryPath);
 
 	if(!searchHistory) {
 		searchHistory = cJSON_CreateObject();	
 	}
 
 	// Load board file
-	boardJson = loadJson(configValues.boardJsonPath);
+	boardJson = loadJson(config.boardJsonPath);
 
 	if(!boardJson) {
 		printError("Unable to load board values.");
@@ -178,15 +199,17 @@ int main(int argc, char **argv) {
 	}
 
 	// Search Boards and Feeds
-	Context ctx = { &configValues, &options, searchHistory };
+	Context ctx = { &config, &options, searchHistory };
 	searchBoard(boardJson, &ctx, 0);
 
 	// Write History
-	if(writeJson(searchHistory, configValues.searchHistoryPath)) {
+	if(writeJson(searchHistory, config.searchHistoryPath)) {
 		printError("Unable to write history.");
 		ret = 1;
 		goto cleanup;
 	}
+
+	writeBulletin();
 
 cleanup:
 	cJSON_Delete(searchHistory);
