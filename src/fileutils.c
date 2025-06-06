@@ -125,7 +125,7 @@ int writeJson(const cJSON *json, const char *path) {
 
 int writePost(const PostData *post, const char *directory) {
 	char normalizedTitle[strlen(post->title)+1];
-	strcpy(normalizedTitle, strip(strlwr(post->title)));
+	strcpy(normalizedTitle, normalize(post->title));
 
 	XXH64_hash_t titleHash = XXH64(normalizedTitle, strlen(normalizedTitle), 0);
 
@@ -181,7 +181,7 @@ int processFiles(char *path, int (*process)(void *, struct dirent *, int), void 
 			count++;
 		}
 	}
-	closedir(d);
+	closedir(directoryStream);
 	return 0;
 }
 
@@ -191,7 +191,7 @@ int count(int *counter, struct dirent *unused, int count) {
 }
 
 int populateFilenamesArray(char **filenames, struct dirent *file, int count) {
-	filesnames[count] = strdup(file->d_name);
+	filenames[count] = strdup(file->d_name);
 	return 0;
 }
 
@@ -199,7 +199,7 @@ int compare(const void *a, const void *b) {
 	return strcmp(*(const char **)b, *(const char **)a);
 }
 
-int writeBulletin() {
+int initializeBulletin() {
 	int numberOfPosts = 0;
 	processFiles("./static/posts", count, &numberOfPosts);
 
