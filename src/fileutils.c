@@ -168,18 +168,31 @@ int writePost(const PostData *post, const char *directory) {
 	return 0;
 }
 
-int countFiles(const char *path) {
-	DIR *d = opendir(path);
-	struct dirent *dir;
+int processFiles(char *path, int (*process)(void *, struct dirent *, int), void *data) {
+	DIR *directoryStream = opendir(path);	
+	struct dirent *directoryEntry;
+	if(!directoryStream) 
+		return 1;
 	int count = 0;
-	if (!d) return -1;
-
-	while ((dir = readdir(d)) != NULL) {
-		if (dir->d_name[0] != '.') count++;
+	while ((directoryEntry = readdir(directoryStream)) != NULL) {
+		if(directoryEntry->d_name[0] != '.') {
+			if(process(data, directoryEntry, count))
+				return 1;
+			count++;
+		}
 	}
-
 	closedir(d);
-	return count;
+	return 0;
+}
+
+int count(int *counter, struct dirent *unused, int count) {
+	*counter = count + 1;
+	return 0;
+}
+
+int populateFilenamesArray(char **filenames, struct dirent *file, int count) {
+	filesnames[count] = strdup(file->d_name);
+	return 0;
 }
 
 int compare(const void *a, const void *b) {
@@ -187,50 +200,37 @@ int compare(const void *a, const void *b) {
 }
 
 int writeBulletin() {
-	//If not reloading
-	DIR *d;
-	struct dirent *dir;
-	char *filenames[countFiles("./static/posts")];  // Adjust size as needed
-	int count = 0;
+	int numberOfPosts = 0;
+	processFiles("./static/posts", count, &numberOfPosts);
 
-	d = opendir("./static/posts");
-	if (d) {
-		while ((dir = readdir(d)) != NULL) {
-			if (dir->d_name[0] != '.'){ 
-				filenames[count] = strdup(dir->d_name);
-				count++;
-			}
-		}
-		closedir(d);
+	char *filenames[numberOfPosts];
+	processFiles("./static/posts", populateFilenamesArray, filenames);
+	qsort(filenames, numberOfPosts, sizeof(char *), compare);
 
-		qsort(filenames, count, sizeof(char *), compare);
-
-		htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
-		xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
-		xmlDocSetRootElement(doc, html);
-		xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
-			
-		for (int i = 0; i < count; i++) {
-			xmlNodePtr iframe = xmlNewChild(body, NULL, BAD_CAST "iframe", NULL);
-			char iframePath[BASE_PATH_MAX];
-			printf("%s\n", filenames[i]);
-			snprintf(iframePath, sizeof(iframePath), "./posts/%s", filenames[i]);
-			xmlNewProp(iframe, BAD_CAST "src", BAD_CAST iframePath);
-			xmlNewChild(body, NULL, BAD_CAST "br", NULL);
-
-			free(filenames[i]);  // Free allocated memory
-		}
+	htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
+	xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
+	xmlDocSetRootElement(doc, html);
+	xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
 		
-		xmlChar *postSerialized;
-		int size = 0;
-		htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1);
+	for (int i = 0; i < numberOfPosts; i++) {
+		xmlNodePtr iframe = xmlNewChild(body, NULL, BAD_CAST "iframe", NULL);
+		char iframePath[BASE_PATH_MAX];
+		printf("%s\n", filenames[i]);
+		snprintf(iframePath, sizeof(iframePath), "./posts/%s", filenames[i]);
+		xmlNewProp(iframe, BAD_CAST "src", BAD_CAST iframePath);
+		xmlNewChild(body, NULL, BAD_CAST "br", NULL);
 
-		if(!postSerialized) {
-			printf("postSerialized is empthy\n");
-		}
+		free(filenames[i]);  // Free allocated memory
+	}
+	
+	xmlChar *postSerialized;
+	int size = 0;
+	htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1);
 
-		writeFile((const char *)postSerialized, &size, "./static/", "board.html");
+	if(!postSerialized) {
+		printf("postSerialized is empthy\n");
 	}
 
+	writeFile((const char *)postSerialized, &size, "./static/", "board.html");
 	return 0;
 }
