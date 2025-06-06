@@ -150,7 +150,10 @@ int writePost(const PostData *post, const char *directory) {
 
 	xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
 	xmlNewChild(head, NULL, BAD_CAST "title", BAD_CAST "Sample HTML Page");
-
+	xmlNodePtr link = xmlNewChild(head, NULL, BAD_CAST "link", NULL);
+	xmlNewProp(link, BAD_CAST "rel", BAD_CAST "stylesheet");
+	xmlNewProp(link, BAD_CAST "href", BAD_CAST "../style.css");
+	
 	xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
 	xmlNewChild(body, NULL, BAD_CAST "h2", BAD_CAST post->title);
 	xmlNewChild(body, NULL, BAD_CAST "p", BAD_CAST post->link);
@@ -163,7 +166,10 @@ int writePost(const PostData *post, const char *directory) {
 		printf("postSerialized is empthy\n");
 	}
 
-	writeFile((const char *)postSerialized, &size, directory, filename);
+	char postsDirectory[PATH_MAX];
+	snprintf(postsDirectory, sizeof(postsDirectory), "%s/posts/", directory);
+
+	writeFile((const char *)postSerialized, &size, postsDirectory, filename);
 
 	return 0;
 }
@@ -210,6 +216,11 @@ int initializeBulletin() {
 	htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
 	xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
 	xmlDocSetRootElement(doc, html);
+	xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
+	xmlNodePtr link = xmlNewChild(head, NULL, BAD_CAST "link", NULL);
+	xmlNewProp(link, BAD_CAST "rel", BAD_CAST "stylesheet");
+	xmlNewProp(link, BAD_CAST "href", BAD_CAST "style.css");
+
 	xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
 		
 	for (int i = 0; i < numberOfPosts; i++) {
@@ -220,7 +231,7 @@ int initializeBulletin() {
 		xmlNewProp(iframe, BAD_CAST "src", BAD_CAST iframePath);
 		xmlNewChild(body, NULL, BAD_CAST "br", NULL);
 
-		free(filenames[i]);  // Free allocated memory
+		free(filenames[i]);
 	}
 	
 	xmlChar *postSerialized;

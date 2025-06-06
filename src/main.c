@@ -18,7 +18,6 @@
 #include "fetch.h"
 #include "fileutils.h"
 #include "config.h"
-#include "stringutils.h" //Just for testing
 
 #define PROGRAM_TITLE "ringbulletin"
 #define CONFIG_PATH "config.json"
