@@ -18,6 +18,7 @@
 #include "fetch.h"
 #include "fileutils.h"
 #include "config.h"
+#include "bulletin.h"
 
 #define PROGRAM_TITLE "ringbulletin"
 #define CONFIG_PATH "config.json"
@@ -162,6 +163,8 @@ int main(int argc, char **argv) {
 	cJSON *searchHistory;
 	int ret = 0;
 	Options options = {0};
+
+	/*
 	int c = 0;
 	int reloadFlag = 0;
 	while((c = getopt(argc, argv, "rh")) != -1) {
@@ -176,6 +179,7 @@ int main(int argc, char **argv) {
 				abort();
 		}
 	}
+	*/
 
 	// Load Config
 	ConfigValues config;
@@ -209,7 +213,7 @@ int main(int argc, char **argv) {
 		goto cleanup;
 	}
 
-	initializeBulletin();
+	writeBulletin();
 
 cleanup:
 	cJSON_Delete(searchHistory);

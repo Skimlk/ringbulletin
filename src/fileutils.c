@@ -87,6 +87,19 @@ int writeFile(const char *content, const int *size, const char *directory, const
 	return 0;
 }
 
+int copyFile(const char *sourcePath, const char *destinationDirectory, const char *destinationFilename) {
+	char *sourceContent = readFile(sourcePath);
+	int success = writeFile(sourceContent, NULL, destinationDirectory, destinationFilename);
+	free(sourceContent);
+
+	if(success) {
+		fprintf(stderr, "Could not copy file '%s' to '%s' in '%s'.\n", 
+			sourcePath, destinationFilename, destinationDirectory);
+	}
+
+	return success;
+}
+
 cJSON *loadJson(const char *path) {
 	char *fileContents = readFile(path);
 	if(!fileContents) {
@@ -123,57 +136,6 @@ int writeJson(const cJSON *json, const char *path) {
 	return 0;
 }
 
-int writePost(const PostData *post, const char *directory) {
-	char normalizedTitle[strlen(post->title)+1];
-	strcpy(normalizedTitle, normalize(post->title));
-
-	XXH64_hash_t titleHash = XXH64(normalizedTitle, strlen(normalizedTitle), 0);
-
-	struct tm tm = {0};
-
-	if (strptime(post->pubDate, "%a, %d %b %Y %H:%M:%S %z", &tm) == NULL) {
-		fprintf(stderr, "Failed to parse date-time.\n");
-		return 1;
-	}
-
-	time_t now = mktime(&tm);
-
-	char filename[64];
-
-	snprintf(filename, sizeof(filename), "%ld_%016llu.html",
-		 (long)now, (unsigned long long)titleHash);
-
-	htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
-
-	xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
-	xmlDocSetRootElement(doc, html);
-
-	xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
-	xmlNewChild(head, NULL, BAD_CAST "title", BAD_CAST "Sample HTML Page");
-	xmlNodePtr link = xmlNewChild(head, NULL, BAD_CAST "link", NULL);
-	xmlNewProp(link, BAD_CAST "rel", BAD_CAST "stylesheet");
-	xmlNewProp(link, BAD_CAST "href", BAD_CAST "../style.css");
-	
-	xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
-	xmlNewChild(body, NULL, BAD_CAST "h2", BAD_CAST post->title);
-	xmlNewChild(body, NULL, BAD_CAST "p", BAD_CAST post->link);
-
-	xmlChar *postSerialized;
-	int size = 0;
-	htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1);
-
-	if(!postSerialized) {
-		printf("postSerialized is empthy\n");
-	}
-
-	char postsDirectory[PATH_MAX];
-	snprintf(postsDirectory, sizeof(postsDirectory), "%s/posts/", directory);
-
-	writeFile((const char *)postSerialized, &size, postsDirectory, filename);
-
-	return 0;
-}
-
 int processFiles(char *path, int (*process)(void *, struct dirent *, int), void *data) {
 	DIR *directoryStream = opendir(path);	
 	struct dirent *directoryEntry;
@@ -203,45 +165,4 @@ int populateFilenamesArray(char **filenames, struct dirent *file, int count) {
 
 int compare(const void *a, const void *b) {
 	return strcmp(*(const char **)b, *(const char **)a);
-}
-
-int initializeBulletin() {
-	int numberOfPosts = 0;
-	processFiles("./static/posts", count, &numberOfPosts);
-
-	char *filenames[numberOfPosts];
-	processFiles("./static/posts", populateFilenamesArray, filenames);
-	qsort(filenames, numberOfPosts, sizeof(char *), compare);
-
-	htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
-	xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
-	xmlDocSetRootElement(doc, html);
-	xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
-	xmlNodePtr link = xmlNewChild(head, NULL, BAD_CAST "link", NULL);
-	xmlNewProp(link, BAD_CAST "rel", BAD_CAST "stylesheet");
-	xmlNewProp(link, BAD_CAST "href", BAD_CAST "style.css");
-
-	xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
-		
-	for (int i = 0; i < numberOfPosts; i++) {
-		xmlNodePtr iframe = xmlNewChild(body, NULL, BAD_CAST "iframe", NULL);
-		char iframePath[BASE_PATH_MAX];
-		printf("%s\n", filenames[i]);
-		snprintf(iframePath, sizeof(iframePath), "./posts/%s", filenames[i]);
-		xmlNewProp(iframe, BAD_CAST "src", BAD_CAST iframePath);
-		xmlNewChild(body, NULL, BAD_CAST "br", NULL);
-
-		free(filenames[i]);
-	}
-	
-	xmlChar *postSerialized;
-	int size = 0;
-	htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1);
-
-	if(!postSerialized) {
-		printf("postSerialized is empthy\n");
-	}
-
-	writeFile((const char *)postSerialized, &size, "./static/", "board.html");
-	return 0;
 }

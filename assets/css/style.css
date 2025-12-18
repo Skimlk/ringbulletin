@@ -1,0 +1,70 @@
+/* Global dark theme */
+html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #121212;
+    color: #e0e0e0;
+    font-family: "Arial", sans-serif;
+}
+
+/* Board page iframes stretch full width */
+iframe {
+    width: 100%;
+    height: 140px; /* compact height */
+    border: none;
+    background-color: #1e1e1e;
+    margin: 0;
+    display: block;
+}
+
+/* Compact spacing between iframes */
+iframe + iframe {
+    margin-top: 5px;
+}
+
+/* Post headings */
+h2 {
+    margin: 5px 0;
+    font-size: 18px;
+    color: #ffffff;
+}
+
+/* Post paragraphs */
+p {
+    margin: 3px 0;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #cccccc;
+}
+
+/* Links inside posts */
+a {
+    color: #80cbc4;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Optional: post container style for standalone posts */
+body > h2,
+body > p {
+    background-color: #1e1e1e;
+    padding: 5px 8px;
+    border: 1px solid #333333;
+    border-radius: 3px;
+    margin: 5px;
+}
+
+#navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .75rem .75rem;
+  background-color: #1e1e1e; /* dark gray-blue */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
