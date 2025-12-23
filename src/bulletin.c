@@ -23,6 +23,29 @@ void addStyle(xmlNodePtr head, const char *stylePath) {
     xmlNewProp(link, BAD_CAST "href", BAD_CAST stylePath);
 }
 
+xmlNodePtr addDropdownButton(xmlNodePtr parent, char *iconPath) {
+    xmlNodePtr details = xmlNewChild(parent, NULL, BAD_CAST "details", NULL);
+    xmlNewProp(details, BAD_CAST "class", BAD_CAST "dropdown-button");
+        xmlNodePtr summary = xmlNewChild(details, NULL, BAD_CAST "summary", NULL);
+        xmlNewProp(summary, BAD_CAST "class", BAD_CAST "icon-button");
+            char *icon = readFile(iconPath);
+            xmlDocPtr iconDoc = xmlReadMemory(
+                icon,
+                (int)strlen(icon),
+                "icon.svg",
+                NULL,
+                XML_PARSE_NOERROR | XML_PARSE_NOWARNING
+            );
+            xmlNodePtr iconRoot = xmlDocGetRootElement(iconDoc);
+            xmlNodePtr importedIcon = xmlDocCopyNode(iconRoot, parent->doc, 1);
+            xmlAddChild(summary, importedIcon);
+    
+    xmlNodePtr dropdownMenu = xmlNewChild(details, NULL, BAD_CAST "div", NULL);
+    xmlNewProp(dropdownMenu, BAD_CAST "class", BAD_CAST "dropdown-menu");
+
+    return dropdownMenu;
+}
+
 int writePost(const PostData *post, const char *directory) {
     char normalizedTitle[strlen(post->title)+1];
     strcpy(normalizedTitle, post->title);
@@ -75,13 +98,27 @@ int writePost(const PostData *post, const char *directory) {
 		xmlNodePtr description = xmlNewChild(postElement, NULL, BAD_CAST "div", post->description);
 		xmlNewProp(description, BAD_CAST "class", BAD_CAST "post-description");
 
+        xmlNodePtr replies = xmlNewChild(postElement, NULL, BAD_CAST "div", NULL);
+		xmlNewProp(description, BAD_CAST "class", BAD_CAST "replies");
+
     xmlChar *postSerialized;
     int size = 0;
     htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1);
 
     if(!postSerialized) {
         printf("Post was not serialized\n");
+        return 1;
     }
+
+    /*char *existingPostHashFile = find(titleHash);
+    if(!existingPostHash) {
+        open(existingPostHashFile);
+        put postSerialized in a div in that existingPostHashFile
+        move existingPostHashFile to postsDirectory filename
+        return 0;
+    }*/
+
+
 
     char postsDirectory[PATH_MAX];
     snprintf(postsDirectory, sizeof(postsDirectory), "%s/posts/", directory);
@@ -92,12 +129,8 @@ int writePost(const PostData *post, const char *directory) {
 }
 
 int writeBulletin() {
-    int numberOfPosts = 0;
-    processFiles("./static/posts", (void *)count, &numberOfPosts);
-
-    char *filenames[numberOfPosts];
-    processFiles("./static/posts", (void *)populateFilenamesArray, filenames);
-    qsort(filenames, numberOfPosts, sizeof(char *), compare);
+    Files *posts = getFiles("./static/posts");
+    qsort(posts->filenames, posts->numberOfFiles, sizeof(char *), compare);
 
     htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
     xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
@@ -116,18 +149,29 @@ int writeBulletin() {
 
 			xmlNodePtr rightNavbarSection = xmlNewChild(navbar, NULL, BAD_CAST "div", NULL);
 			xmlNewProp(rightNavbarSection, BAD_CAST "class", BAD_CAST "nav-right");
+                xmlNodePtr aboutDropdown = addDropdownButton(rightNavbarSection, "./assets/svg/help-info-solid.svg");
+                xmlNodeAddContent(aboutDropdown, BAD_CAST "About ");
+                xmlNodePtr githubLink = xmlNewChild(aboutDropdown, NULL, BAD_CAST "a", "GitHub");
+                xmlNewProp(githubLink, BAD_CAST "href", BAD_CAST "https://github.com/Skimlk/ringbulletin");
+                xmlNewProp(githubLink, BAD_CAST "target", BAD_CAST "_blank");
+
+                xmlNodePtr copyDropdown = addDropdownButton(rightNavbarSection, "./assets/svg/copy-to-clipboard-line.svg");
+                xmlNodeAddContent(copyDropdown, BAD_CAST "Board URL:");
+                xmlNodePtr boardUrl = xmlNewChild(copyDropdown, NULL, BAD_CAST "input", NULL);
+                xmlNewProp(boardUrl, BAD_CAST "type", BAD_CAST "text");
+                xmlNewProp(boardUrl, BAD_CAST "value", BAD_CAST "https://example.com");
 
 		xmlNodePtr board = xmlNewChild(body, NULL, BAD_CAST "div", NULL);
 		xmlNewProp(board, BAD_CAST "id", BAD_CAST "board");
-			for (int i = 0; i < numberOfPosts; i++) {
+			for (int i = 0; i < posts->numberOfFiles; i++) {
 				xmlNodePtr iframe = xmlNewChild(board, NULL, BAD_CAST "iframe", NULL);
 				xmlNewProp(iframe, BAD_CAST "class", BAD_CAST "post");
 				char iframePath[BASE_PATH_MAX];
-				printf("%s\n", filenames[i]);
-				snprintf(iframePath, sizeof(iframePath), "./posts/%s", filenames[i]);
+				printf("%s\n", posts->filenames[i]);
+				snprintf(iframePath, sizeof(iframePath), "./posts/%s", posts->filenames[i]);
 				xmlNewProp(iframe, BAD_CAST "src", BAD_CAST iframePath);
 
-				free(filenames[i]);
+				free(posts->filenames[i]);
 			}   
     
     xmlChar *postSerialized;

@@ -144,9 +144,8 @@ int processFiles(char *path, int (*process)(void *, struct dirent *, int), void 
 	int count = 0;
 	while ((directoryEntry = readdir(directoryStream)) != NULL) {
 		if(directoryEntry->d_name[0] != '.') {
-			if(process(data, directoryEntry, count))
-				return 1;
-			count++;
+			if(!process(data, directoryEntry, count))
+				count++;
 		}
 	}
 	closedir(directoryStream);
@@ -165,4 +164,45 @@ int populateFilenamesArray(char **filenames, struct dirent *file, int count) {
 
 int compare(const void *a, const void *b) {
 	return strcmp(*(const char **)b, *(const char **)a);
+}
+
+int matchesPattern(Pattern *pattern, struct dirent *file, int count) {
+	if(pattern->matched(pattern->data)) {
+		return pattern->process(pattern->data, file, count);
+	}
+
+	return 1;
+}
+
+Files *getFilesMatchingPattern(char *directory, int (*pattern)(void *)) {
+	Files *files = malloc(sizeof(Files));
+
+	Pattern countIfMatching = {
+		pattern,
+		(void *)count,
+		&files->numberOfFiles
+	};
+
+    files->numberOfFiles = 0;
+    processFiles(directory, (void *)matchesPattern, &countIfMatching);
+
+	files->filenames = malloc(files->numberOfFiles * sizeof(*files->filenames));
+
+	Pattern populateFilenamesArrayIfMatching = {
+		pattern,
+		(void *)populateFilenamesArray,
+		files->filenames
+	};
+
+    processFiles(directory, (void *)matchesPattern, &populateFilenamesArrayIfMatching);
+
+    return files;
+}
+
+int alwaysTrue(void *unused) {
+	return 1;
+}
+
+Files *getFiles(char *directory) {
+	return getFilesMatchingPattern(directory, alwaysTrue);
 }
