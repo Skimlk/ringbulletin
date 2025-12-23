@@ -6,10 +6,10 @@ OBJ := $(SRC:.c=.o)
 all: ringbulletin
 
 ringbulletin: $(OBJ)
-	$(CC) $(OBJ) -o $@ -lcjson -lcurl -lxml2 -lxxhash $(CFLAGS)
+	$(CC) $(OBJ) -o $@ -lcjson -lcurl -lxml2 -lxxhash
 
 %.o: %.c
-	$(CC) -c $< -o $@ $(CFLAGS)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f src/*.o ringbulletin
