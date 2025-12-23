@@ -1,6 +1,13 @@
 #ifndef BULLETIN_H
 #define BULLETIN_H
 
+typedef struct {
+	char *title;
+	char *link;
+	char *pubDate;
+	char *description;
+} PostData;
+
 extern int writeBulletin();
 extern int writePost();
 

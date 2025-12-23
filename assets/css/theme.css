@@ -1,0 +1,11 @@
+:root {
+  --color-bg: rgb(48, 52, 70);
+  --color-text: rgb(198, 208, 245);
+  --color-navbar: rgb(81, 87, 109);
+  --color-accent: rgb(140, 170, 238);
+  --color-navbar-text: rgb(229, 200, 144);
+  --color-post-bg: rgb(65, 70, 95);
+  --color-post-title: rgb(181, 191, 226);
+  --color-dropdown-shadow: rgba(0, 0, 0, 0.3);
+  --color-overlay: rgba(0, 0, 0, 0.35);
+}

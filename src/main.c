@@ -107,6 +107,11 @@ void processFeed(char *feed, Context *ctx, char *url) {
 				post.pubDate = strdup(element);
 			}
 
+			else if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"description") == 0) {
+				printf("description: %s\n", element);
+				post.description = strdup(element);
+			}
+
 			xmlFree(element);
 		}
 

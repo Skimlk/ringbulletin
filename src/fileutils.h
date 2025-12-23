@@ -9,13 +9,6 @@
 #define BASE_PATH_MAX (PATH_MAX - sizeof(TEMP_NAME_EXT))
 #define URL_MAX 2048
 
-typedef struct {
-	char *title;
-	char *link;
-	char *pubDate;
-	char *description;
-} PostData;
-
 extern cJSON *loadJson(const char *path);
 extern int writeJson(const cJSON *json, const char *path);
 extern int writeFile(const char *content, const int *size, const char *directory, const char *filename);
