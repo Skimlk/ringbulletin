@@ -16,7 +16,38 @@
 #include "fileutils.h"
 #include "stringutils.h"
 
-char *readFile(const char *path) {
+int invalidFilename(const char *filename) {
+	if(strlen(filename) >= BASE_NAME_MAX) {
+		fprintf(stderr, "Filename '%s' is too long.\n", filename);
+		return 1;
+	}
+
+	return 0;
+}
+
+int invalidPath(const char *directory, const char *filename) {
+	if(strlen(filename) + strlen(directory) >= BASE_PATH_MAX) {
+		fprintf(stderr, "Path '%s%s' is too long.\n", directory, filename);
+		return 1;
+	}
+
+	return 0;
+}
+
+char *readFile(const char *directory, const char *filename) {
+	if(invalidFilename(filename))
+		return NULL;
+
+	if(directory) {
+		if(invalidPath(directory, filename))
+			return NULL;
+	} else {
+		directory = "";
+	}
+
+	char path[PATH_MAX];
+	snprintf(path, PATH_MAX, "%s%s", directory, filename);
+	
 	FILE *file = fopen(path, "rb");
 	if(!file) {
 		printf("Could not open file '%s'.\n", path);
@@ -44,16 +75,12 @@ int writeFile(const char *content, const int *size, const char *directory, const
 		return 1;
 	}
 
-	if(strlen(filename) >= BASE_NAME_MAX) {
-		fprintf(stderr, "Filename '%s' is too long.\n", filename);
+	if(invalidFilename(filename))
 		return 1;
-	}
 
 	if(directory) {
-		if(strlen(filename) + strlen(directory) >= BASE_PATH_MAX) {
-			fprintf(stderr, "Path '%s%s' is too long.\n", directory, filename);
+		if(invalidPath(directory, filename))
 			return 1;
-		}
 	} else {
 		directory = "";
 	}
@@ -87,21 +114,24 @@ int writeFile(const char *content, const int *size, const char *directory, const
 	return 0;
 }
 
-int copyFile(const char *sourcePath, const char *destinationDirectory, const char *destinationFilename) {
-	char *sourceContent = readFile(sourcePath);
+int copyFile(
+	const char *sourceDirectory, const char *sourceFilename,
+	const char *destinationDirectory, const char *destinationFilename
+) {
+	char *sourceContent = readFile(sourceDirectory, sourceFilename);
 	int success = writeFile(sourceContent, NULL, destinationDirectory, destinationFilename);
 	free(sourceContent);
 
 	if(success) {
-		fprintf(stderr, "Could not copy file '%s' to '%s' in '%s'.\n", 
-			sourcePath, destinationFilename, destinationDirectory);
+		fprintf(stderr, "Could not copy file '%s' in '%s' to '%s' in '%s'.\n", 
+			sourceFilename, sourceDirectory, destinationFilename, destinationDirectory);
 	}
 
 	return success;
 }
 
 cJSON *loadJson(const char *path) {
-	char *fileContents = readFile(path);
+	char *fileContents = readFile(NULL, path);
 	if(!fileContents) {
 		return NULL;
 	}

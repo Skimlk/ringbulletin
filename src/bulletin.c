@@ -28,7 +28,7 @@ xmlNodePtr addDropdownButton(xmlNodePtr parent, char *iconPath) {
     xmlNewProp(details, BAD_CAST "class", BAD_CAST "dropdown-button");
         xmlNodePtr summary = xmlNewChild(details, NULL, BAD_CAST "summary", NULL);
         xmlNewProp(summary, BAD_CAST "class", BAD_CAST "icon-button");
-            char *icon = readFile(iconPath);
+            char *icon = readFile(NULL, iconPath);
             xmlDocPtr iconDoc = xmlReadMemory(
                 icon,
                 (int)strlen(icon),
@@ -183,8 +183,8 @@ int writeBulletin() {
     }   
 
     writeFile((const char *)postSerialized, &size, "./static/", "board.html");
-    copyFile("./assets/css/theme.css", "./static/", "theme.css");   
-    copyFile("./assets/css/board.css", "./static/", "board.css");   
+    copyFile("./assets/css/", "theme.css", "./static/", "theme.css");   
+    copyFile("./assets/css/", "board.css", "./static/", "board.css");   
     
 	return 0;   
 }

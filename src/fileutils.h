@@ -21,10 +21,11 @@ typedef struct {
 } Pattern;
 
 extern cJSON *loadJson(const char *path);
-extern char *readFile(const char *path);
+extern char *readFile(const char *directory, const char *filename);
 extern int writeJson(const cJSON *json, const char *path);
 extern int writeFile(const char *content, const int *size, const char *directory, const char *filename);
-extern int copyFile(const char *sourcePath, const char *destinationDirectory, const char *destinationFilename);
+extern int copyFile(const char *sourceDirectory, const char *sourceFilename,
+const char *destinationDirectory, const char *destinationFilename);
 extern int processFiles(char *path, int (*process)(void *, struct dirent *, int), void *data);
 extern int count(int *counter, struct dirent *unused, int count);
 extern int populateFilenamesArray(char **filenames, struct dirent *file, int count);
