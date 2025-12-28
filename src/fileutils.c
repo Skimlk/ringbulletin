@@ -130,6 +130,26 @@ int copyFile(
 	return success;
 }
 
+int removeFile(const char *directory, const char *filename) {
+	if(invalidFilename(filename))
+		return 1;
+
+	if(directory) {
+		if(invalidPath(directory, filename))
+			return 1;
+	} else {
+		directory = "";
+	}
+
+	char path[PATH_MAX];
+	snprintf(path, PATH_MAX, "%s%s", directory, filename);
+
+	if(remove(path))
+		return 1;
+
+	return 0;
+}
+
 cJSON *loadJson(const char *path) {
 	char *fileContents = readFile(NULL, path);
 	if(!fileContents) {
@@ -166,6 +186,10 @@ int writeJson(const cJSON *json, const char *path) {
 	return 0;
 }
 
+int compare(const void *a, const void *b) {
+	return strcmp(*(const char **)b, *(const char **)a);
+}
+
 int processFiles(char *path, int (*process)(void *, struct dirent *, int), void *data) {
 	DIR *directoryStream = opendir(path);	
 	struct dirent *directoryEntry;
@@ -173,7 +197,8 @@ int processFiles(char *path, int (*process)(void *, struct dirent *, int), void 
 		return 1;
 	int count = 0;
 	while ((directoryEntry = readdir(directoryStream)) != NULL) {
-		if(directoryEntry->d_name[0] != '.') {
+		if (strcmp(directoryEntry->d_name, ".") != 0 &&
+			strcmp(directoryEntry->d_name, "..") != 0) {
 			if(!process(data, directoryEntry, count))
 				count++;
 		}
@@ -192,47 +217,52 @@ int populateFilenamesArray(char **filenames, struct dirent *file, int count) {
 	return 0;
 }
 
-int compare(const void *a, const void *b) {
-	return strcmp(*(const char **)b, *(const char **)a);
-}
-
-int matchesPattern(Pattern *pattern, struct dirent *file, int count) {
-	if(pattern->matched(pattern->data)) {
-		return pattern->process(pattern->data, file, count);
+int filenameMatchesPattern(Pattern *pattern, struct dirent *file, int count) {
+	if(pattern->matched(file->d_name, pattern->seed)) {
+		pattern->process(pattern->data, file, count);
+		return 0;
 	}
 
 	return 1;
 }
 
-Files *getFilesMatchingPattern(char *directory, int (*pattern)(void *)) {
+Files *getFilesMatchingPattern(char *directory, int (*pattern)(void *, void *), void *seed) {
 	Files *files = malloc(sizeof(Files));
-
+	files->numberOfFiles = 0;
+	
 	Pattern countIfMatching = {
 		pattern,
 		(void *)count,
-		&files->numberOfFiles
+		&files->numberOfFiles,
+		seed
 	};
-
-    files->numberOfFiles = 0;
-    processFiles(directory, (void *)matchesPattern, &countIfMatching);
+    processFiles(directory, (void *)filenameMatchesPattern, &countIfMatching);
 
 	files->filenames = malloc(files->numberOfFiles * sizeof(*files->filenames));
 
 	Pattern populateFilenamesArrayIfMatching = {
 		pattern,
 		(void *)populateFilenamesArray,
-		files->filenames
+		files->filenames,
+		seed
 	};
 
-    processFiles(directory, (void *)matchesPattern, &populateFilenamesArrayIfMatching);
+    processFiles(directory, (void *)filenameMatchesPattern, &populateFilenamesArrayIfMatching);
 
     return files;
 }
 
-int alwaysTrue(void *unused) {
+int contains(void *string, void *substring) {
+	if(strstr((char *)string, (char *)substring) != NULL) {
+		return 1;
+	}
+	return 0;
+}
+
+int alwaysTrue(void *unusedPattern, void *unusedSeed) {
 	return 1;
 }
 
 Files *getFiles(char *directory) {
-	return getFilesMatchingPattern(directory, alwaysTrue);
+	return getFilesMatchingPattern(directory, alwaysTrue, NULL);
 }

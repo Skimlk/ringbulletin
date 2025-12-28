@@ -10,6 +10,7 @@
 #include <dirent.h> 
 
 #include <libxml/HTMLtree.h>
+#include <libxml/xpath.h>
 #include "xxhash.h"
 
 #include "bulletin.h"
@@ -50,7 +51,7 @@ int writePost(const PostData *post, const char *directory) {
     char normalizedTitle[strlen(post->title)+1];
     strcpy(normalizedTitle, post->title);
     normalize(normalizedTitle);
-
+ 
     XXH64_hash_t titleHash = XXH64(normalizedTitle, strlen(normalizedTitle), 0);
 
     struct tm tm = {0};
@@ -66,6 +67,8 @@ int writePost(const PostData *post, const char *directory) {
 
     char filename[64];
 
+    char postTimeString[13];
+    snprintf(postTimeString, sizeof(postTimeString), "%ld", (long)now);
     snprintf(filename, sizeof(filename), "%ld_%016llu.html",
          (long)now, (unsigned long long)titleHash);
 
@@ -78,7 +81,8 @@ int writePost(const PostData *post, const char *directory) {
 		addStyle(head, "../theme.css");
 		addStyle(head, "../board.css");
 	
-    xmlNodePtr postElement = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
+    xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
+    xmlNodePtr postElement = xmlNewChild(body, NULL, BAD_CAST "div", NULL);
 	xmlNewProp(postElement, BAD_CAST "class", BAD_CAST "post-inner");
 		xmlNodePtr postTitle = xmlNewChild(postElement, NULL, BAD_CAST "div", NULL);
 		xmlNewProp(postTitle, BAD_CAST "class", BAD_CAST "post-title");
@@ -98,9 +102,66 @@ int writePost(const PostData *post, const char *directory) {
 		xmlNodePtr description = xmlNewChild(postElement, NULL, BAD_CAST "div", post->description);
 		xmlNewProp(description, BAD_CAST "class", BAD_CAST "post-description");
 
-        xmlNodePtr replies = xmlNewChild(postElement, NULL, BAD_CAST "div", NULL);
-		xmlNewProp(description, BAD_CAST "class", BAD_CAST "replies");
+        xmlNodePtr replies = xmlNewChild(body, NULL, BAD_CAST "div", NULL);
+		xmlNewProp(replies, BAD_CAST "class", BAD_CAST "replies");
+   
+    char postsDirectory[PATH_MAX];
+    snprintf(postsDirectory, sizeof(postsDirectory), "%s/posts/", directory);
 
+	char titleHashString[40];
+	snprintf(titleHashString, sizeof(titleHashString), "%lu", titleHash);
+
+    Files *existingPostsWithHash = getFilesMatchingPattern("./static/posts", contains, titleHashString);
+    printf("Number of files: %d", existingPostsWithHash->numberOfFiles);
+    for(int i = 0; i < existingPostsWithHash->numberOfFiles; i++) {
+        char *existingPostWithHashTime = extractTimeFromFilename(existingPostsWithHash->filenames[i]);
+
+        //If there's an existing post with the same hash from later date, add content to replies
+        if(strcmp(existingPostsWithHash->filenames[i], filename) != 0) {
+            char *replyFile = readFile("./static/posts/", existingPostsWithHash->filenames[i]);
+            htmlDocPtr replyDoc = htmlReadMemory(replyFile, strlen(replyFile), NULL, "UTF-8", 0);
+            xmlXPathContextPtr ctx = xmlXPathNewContext(replyDoc);
+            
+            if(strcmp(postTimeString, existingPostWithHashTime) < 0) {
+                xmlXPathObjectPtr innerPost = xmlXPathEvalExpression(
+                    BAD_CAST "//*[@class='post-inner']",
+                    ctx
+                );
+
+                xmlNodePtr sameHashPost = innerPost->nodesetval->nodeTab[0];
+                xmlUnsetProp(sameHashPost, BAD_CAST "class");
+                xmlNewProp(sameHashPost, BAD_CAST "class", BAD_CAST "reply");
+
+                xmlNodePtr imported = xmlDocCopyNode(sameHashPost, replies->doc, 1);
+
+                xmlAddChild(replies, imported);
+
+                removeFile("./static/posts/", existingPostsWithHash->filenames[i]);
+            }
+            else {
+                xmlXPathObjectPtr matchingHashReplies = xmlXPathEvalExpression(
+                    BAD_CAST "//*[@class='replies']",
+                    ctx
+                );
+
+                xmlNodePtr repliesNode = matchingHashReplies->nodesetval->nodeTab[0];
+
+                xmlUnsetProp(postElement, BAD_CAST "class");
+                xmlNewProp(postElement, BAD_CAST "class", BAD_CAST "reply");
+
+                xmlNodePtr imported = xmlDocCopyNode(postElement, replyDoc, 1);
+                xmlAddChild(repliesNode, imported);
+
+                xmlChar *buffer = NULL;
+                int size = 0;
+                htmlDocDumpMemoryFormat(replyDoc, &buffer, &size, 1);
+                writeFile((const char *)buffer, &size, "./static/posts/", existingPostsWithHash->filenames[i]);
+                            
+                return 0;
+            }
+        }
+    }
+    
     xmlChar *postSerialized;
     int size = 0;
     htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1);
@@ -109,19 +170,6 @@ int writePost(const PostData *post, const char *directory) {
         printf("Post was not serialized\n");
         return 1;
     }
-
-    /*char *existingPostHashFile = find(titleHash);
-    if(!existingPostHash) {
-        open(existingPostHashFile);
-        put postSerialized in a div in that existingPostHashFile
-        move existingPostHashFile to postsDirectory filename
-        return 0;
-    }*/
-
-
-
-    char postsDirectory[PATH_MAX];
-    snprintf(postsDirectory, sizeof(postsDirectory), "%s/posts/", directory);
 
     writeFile((const char *)postSerialized, &size, postsDirectory, filename);
 

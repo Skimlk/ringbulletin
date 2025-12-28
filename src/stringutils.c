@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include <ctype.h>
 
 char *strlwr(char *string) {
@@ -46,4 +47,17 @@ char *normalize(char *string) {
 			strlwr(string)
 		)
 	);
+}
+
+char *extractTimeFromFilename(char *filename) {
+	char *time = malloc(sizeof(char) * 13);
+
+	int i = 0;
+	for(;filename[i] != '_'; i++) {
+		time[i] = filename[i];
+	}
+
+	time[i] = '\0';
+
+	return time;
 }

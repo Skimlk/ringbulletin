@@ -8,6 +8,11 @@ typedef struct {
 	char *description;
 } PostData;
 
+typedef struct {
+	char *postFileDate;
+	char *postFileHash;
+} PostFile;
+
 extern int writeBulletin();
 extern int writePost();
 
