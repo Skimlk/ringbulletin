@@ -17,6 +17,13 @@
 #include "fileutils.h"
 #include "stringutils.h"
 
+xmlNodePtr addElement(xmlNodePtr parent, const char *tag, const char *text, const char *id, const char *class) {
+    xmlNodePtr node = xmlNewChild(parent, NULL, BAD_CAST tag, text ? BAD_CAST text : NULL);
+    if(id) xmlNewProp(node, BAD_CAST "id", BAD_CAST id);
+    if(class) xmlNewProp(node, BAD_CAST "class", BAD_CAST class);
+    return node;
+}
+
 void addStyle(xmlNodePtr head, const char *stylePath) {
     xmlNodePtr link = xmlNewChild(head, NULL, BAD_CAST "link", NULL);
     xmlNewProp(link, BAD_CAST "rel", BAD_CAST "stylesheet");
@@ -25,10 +32,8 @@ void addStyle(xmlNodePtr head, const char *stylePath) {
 }
 
 xmlNodePtr addDropdownButton(xmlNodePtr parent, char *iconPath) {
-    xmlNodePtr details = xmlNewChild(parent, NULL, BAD_CAST "details", NULL);
-    xmlNewProp(details, BAD_CAST "class", BAD_CAST "dropdown-button");
-        xmlNodePtr summary = xmlNewChild(details, NULL, BAD_CAST "summary", NULL);
-        xmlNewProp(summary, BAD_CAST "class", BAD_CAST "icon-button");
+    xmlNodePtr details = addElement(parent, "details", NULL, NULL, "dropdown-button");
+        xmlNodePtr summary = addElement(details, "summary", NULL, NULL, "icon-button");
             char *icon = readFile(NULL, iconPath);
             xmlDocPtr iconDoc = xmlReadMemory(
                 icon,
@@ -40,9 +45,8 @@ xmlNodePtr addDropdownButton(xmlNodePtr parent, char *iconPath) {
             xmlNodePtr iconRoot = xmlDocGetRootElement(iconDoc);
             xmlNodePtr importedIcon = xmlDocCopyNode(iconRoot, parent->doc, 1);
             xmlAddChild(summary, importedIcon);
-    
-    xmlNodePtr dropdownMenu = xmlNewChild(details, NULL, BAD_CAST "div", NULL);
-    xmlNewProp(dropdownMenu, BAD_CAST "class", BAD_CAST "dropdown-menu");
+   
+        xmlNodePtr dropdownMenu = addElement(details, "div", NULL, NULL, "dropdown-menu");
 
     return dropdownMenu;
 }
@@ -82,28 +86,20 @@ int writePost(const PostData *post, const char *directory) {
 		addStyle(head, "../board.css");
 	
     xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
-    xmlNodePtr postElement = xmlNewChild(body, NULL, BAD_CAST "div", NULL);
-	xmlNewProp(postElement, BAD_CAST "class", BAD_CAST "post-inner");
-		xmlNodePtr postTitle = xmlNewChild(postElement, NULL, BAD_CAST "div", NULL);
-		xmlNewProp(postTitle, BAD_CAST "class", BAD_CAST "post-title");
+    xmlNodePtr postElement = addElement(body, "div", NULL, NULL, "post-inner");
+        xmlNodePtr postTitle = addElement(postElement, "div", NULL, NULL, "post-title"); 
 		xmlNodePtr postLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", post->title);
 			xmlNewProp(postLink, BAD_CAST "href", post->link);
 			xmlNewProp(postLink, BAD_CAST "target", BAD_CAST "_blank");
 
-		
-		xmlNodePtr postMeta = xmlNewChild(postElement, NULL, BAD_CAST "div", NULL);
-		xmlNewProp(postMeta, BAD_CAST "class", BAD_CAST "post-meta");
-			xmlNodePtr postDate = xmlNewChild(postMeta, NULL, BAD_CAST "span", post->pubDate);
-			xmlNewProp(postDate, BAD_CAST "class", BAD_CAST "post-date");
+        xmlNodePtr postMeta = addElement(postElement, "div", NULL, NULL, "post-meta");
+			addElement(postMeta, "span", post->pubDate, NULL, "post-date");
 			xmlNewChild(postMeta, NULL, BAD_CAST "span", BAD_CAST " • ");
-			xmlNodePtr postUrl = xmlNewChild(postMeta, NULL, BAD_CAST "span", post->link);
-			xmlNewProp(postUrl, BAD_CAST "class", BAD_CAST "post-url");
+			addElement(postMeta, "span", post->link, NULL, "post-url");
 
-		xmlNodePtr description = xmlNewChild(postElement, NULL, BAD_CAST "div", post->description);
-		xmlNewProp(description, BAD_CAST "class", BAD_CAST "post-description");
+        xmlNodePtr description = addElement(postElement, "div", post->description, NULL, "post-description");
 
-        xmlNodePtr replies = xmlNewChild(body, NULL, BAD_CAST "div", NULL);
-		xmlNewProp(replies, BAD_CAST "class", BAD_CAST "replies");
+    xmlNodePtr replies = addElement(body, "div", NULL, NULL, "replies");
    
     char postsDirectory[PATH_MAX];
     snprintf(postsDirectory, sizeof(postsDirectory), "%s/posts/", directory);
@@ -116,12 +112,14 @@ int writePost(const PostData *post, const char *directory) {
     for(int i = 0; i < existingPostsWithHash->numberOfFiles; i++) {
         char *existingPostWithHashTime = extractTimeFromFilename(existingPostsWithHash->filenames[i]);
 
-        //If there's an existing post with the same hash from later date, add content to replies
+        //If there's an existing post with the same hash
         if(strcmp(existingPostsWithHash->filenames[i], filename) != 0) {
             char *replyFile = readFile("./static/posts/", existingPostsWithHash->filenames[i]);
             htmlDocPtr replyDoc = htmlReadMemory(replyFile, strlen(replyFile), NULL, "UTF-8", 0);
             xmlXPathContextPtr ctx = xmlXPathNewContext(replyDoc);
             
+            //If the existing post has a later date, add the existing post content
+                //to this post and overwrite the existing post with this one
             if(strcmp(postTimeString, existingPostWithHashTime) < 0) {
                 xmlXPathObjectPtr innerPost = xmlXPathEvalExpression(
                     BAD_CAST "//*[@class='post-inner']",
@@ -137,7 +135,10 @@ int writePost(const PostData *post, const char *directory) {
                 xmlAddChild(replies, imported);
 
                 removeFile("./static/posts/", existingPostsWithHash->filenames[i]);
+                //Make title variable equal to existingPostWithHash-filenames[i]
             }
+            //If the existing post has an earlier date, add this post's content
+                //to the existing post
             else {
                 xmlXPathObjectPtr matchingHashReplies = xmlXPathEvalExpression(
                     BAD_CAST "//*[@class='replies']",
@@ -155,7 +156,7 @@ int writePost(const PostData *post, const char *directory) {
                 xmlChar *buffer = NULL;
                 int size = 0;
                 htmlDocDumpMemoryFormat(replyDoc, &buffer, &size, 1);
-                writeFile((const char *)buffer, &size, "./static/posts/", existingPostsWithHash->filenames[i]);
+                writeFile((const char *)buffer, &size, "./static/posts/", filename);
                             
                 return 0;
             }
@@ -188,32 +189,25 @@ int writeBulletin() {
 		addStyle(head, "./theme.css");
 		addStyle(head, "./board.css");
   		
-    xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
-	xmlNewProp(body, BAD_CAST "id", BAD_CAST "outer-body");
-		xmlNodePtr navbar = xmlNewChild(body, NULL, BAD_CAST "div", NULL);
-    	xmlNewProp(navbar, BAD_CAST "id", BAD_CAST "navbar");
-			xmlNodePtr mainNavbarSection = xmlNewChild(navbar, NULL, BAD_CAST "div", "RingBulletin");
-			xmlNewProp(mainNavbarSection, BAD_CAST "class", BAD_CAST "nav-main");
-
-			xmlNodePtr rightNavbarSection = xmlNewChild(navbar, NULL, BAD_CAST "div", NULL);
-			xmlNewProp(rightNavbarSection, BAD_CAST "class", BAD_CAST "nav-right");
+    xmlNodePtr body = addElement(html, "body", NULL, "outer-body", NULL);
+		xmlNodePtr navbar = addElement(body, "div", NULL, "navbar", NULL);
+            xmlNodePtr mainNavbarSection = addElement(navbar, "div", "RingBulletin", "nav-main", NULL);
+			xmlNodePtr rightNavbarSection = addElement(navbar, "div", NULL, "nav-right", NULL);
                 xmlNodePtr aboutDropdown = addDropdownButton(rightNavbarSection, "./assets/svg/help-info-solid.svg");
                 xmlNodeAddContent(aboutDropdown, BAD_CAST "About ");
                 xmlNodePtr githubLink = xmlNewChild(aboutDropdown, NULL, BAD_CAST "a", "GitHub");
-                xmlNewProp(githubLink, BAD_CAST "href", BAD_CAST "https://github.com/Skimlk/ringbulletin");
-                xmlNewProp(githubLink, BAD_CAST "target", BAD_CAST "_blank");
+                    xmlNewProp(githubLink, BAD_CAST "href", BAD_CAST "https://github.com/Skimlk/ringbulletin");
+                    xmlNewProp(githubLink, BAD_CAST "target", BAD_CAST "_blank");
 
                 xmlNodePtr copyDropdown = addDropdownButton(rightNavbarSection, "./assets/svg/copy-to-clipboard-line.svg");
                 xmlNodeAddContent(copyDropdown, BAD_CAST "Board URL:");
                 xmlNodePtr boardUrl = xmlNewChild(copyDropdown, NULL, BAD_CAST "input", NULL);
-                xmlNewProp(boardUrl, BAD_CAST "type", BAD_CAST "text");
-                xmlNewProp(boardUrl, BAD_CAST "value", BAD_CAST "https://example.com");
+                    xmlNewProp(boardUrl, BAD_CAST "type", BAD_CAST "text");
+                    xmlNewProp(boardUrl, BAD_CAST "value", BAD_CAST "https://example.com");
 
-		xmlNodePtr board = xmlNewChild(body, NULL, BAD_CAST "div", NULL);
-		xmlNewProp(board, BAD_CAST "id", BAD_CAST "board");
+        xmlNodePtr board = addElement(body, "div", NULL, "board", NULL);
 			for (int i = 0; i < posts->numberOfFiles; i++) {
-				xmlNodePtr iframe = xmlNewChild(board, NULL, BAD_CAST "iframe", NULL);
-				xmlNewProp(iframe, BAD_CAST "class", BAD_CAST "post");
+				xmlNodePtr iframe = addElement(board, "iframe", NULL, NULL, "post");
 				char iframePath[BASE_PATH_MAX];
 				printf("%s\n", posts->filenames[i]);
 				snprintf(iframePath, sizeof(iframePath), "./posts/%s", posts->filenames[i]);

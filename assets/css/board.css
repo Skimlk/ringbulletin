@@ -42,13 +42,13 @@ html {
     border-bottom: 1px solid var(--color-accent);
 }
 
-.nav-main {
+#nav-main {
     color: var(--color-navbar-text);
     font-size: 1.1rem;
     font-weight: 600;
 }
 
-.nav-right {
+#nav-right {
     display: flex;
     gap: 10px;
     align-items: center;
