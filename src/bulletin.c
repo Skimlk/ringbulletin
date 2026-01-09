@@ -16,6 +16,7 @@
 #include "bulletin.h"
 #include "fileutils.h"
 #include "stringutils.h"
+#include "context.h"
 
 xmlNodePtr addElement(xmlNodePtr parent, const char *tag, const char *text, const char *id, const char *class) {
     xmlNodePtr node = xmlNewChild(parent, NULL, BAD_CAST tag, text ? BAD_CAST text : NULL);
@@ -51,7 +52,7 @@ xmlNodePtr addDropdownButton(xmlNodePtr parent, char *iconPath) {
     return dropdownMenu;
 }
 
-int writePost(const PostData *post, const char *directory) {
+int writePost(const PostData *post, Context *ctx) {
     char normalizedTitle[strlen(post->title)+1];
     strcpy(normalizedTitle, post->title);
     normalize(normalizedTitle);
@@ -102,7 +103,7 @@ int writePost(const PostData *post, const char *directory) {
     xmlNodePtr replies = addElement(body, "div", NULL, NULL, "replies");
    
     char postsDirectory[PATH_MAX];
-    snprintf(postsDirectory, sizeof(postsDirectory), "%s/posts/", directory);
+    snprintf(postsDirectory, sizeof(postsDirectory), "%s/posts/", ctx->config->boardGenerationDirectory);
 
 	char titleHashString[40];
 	snprintf(titleHashString, sizeof(titleHashString), "%lu", titleHash);
@@ -113,7 +114,11 @@ int writePost(const PostData *post, const char *directory) {
         char *existingPostWithHashTime = extractTimeFromFilename(existingPostsWithHash->filenames[i]);
 
         //If there's an existing post with the same hash
+            // Not imp: And the post has not been searched
+            // Iterate through history under feedurl>searchedFeeds
+
         if(strcmp(existingPostsWithHash->filenames[i], filename) != 0) {
+            //Add feed to history
             char *replyFile = readFile("./static/posts/", existingPostsWithHash->filenames[i]);
             htmlDocPtr replyDoc = htmlReadMemory(replyFile, strlen(replyFile), NULL, "UTF-8", 0);
             xmlXPathContextPtr ctx = xmlXPathNewContext(replyDoc);

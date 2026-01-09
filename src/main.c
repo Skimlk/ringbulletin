@@ -19,19 +19,10 @@
 #include "fileutils.h"
 #include "config.h"
 #include "bulletin.h"
+#include "context.h"
 
 #define PROGRAM_TITLE "ringbulletin"
 #define CONFIG_PATH "config.json"
-
-typedef struct {
-	int reload;
-} Options;
-
-typedef struct {
-	ConfigValues *config;
-	Options *options;
-	cJSON *searchHistory;
-} Context;
 
 void printUsage() {
 	printf("\nUsage: %s [OPTION]...\n\n", PROGRAM_TITLE);
@@ -115,7 +106,7 @@ void processFeed(char *feed, Context *ctx, char *url) {
 			xmlFree(element);
 		}
 
-		writePost(&post, ctx->config->boardGenerationDirectory);
+		writePost(&post, ctx);
 		//xmlFree(keyword);
 	}
 }
