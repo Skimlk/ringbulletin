@@ -40,13 +40,6 @@ void printError(char *msg) {
 }
 
 void processFeed(char *feed, Context *ctx, char *url) {
-	/*	 
-		- WIP
-		- Get postdata and put it in struct
-		- For Each Post in Posts
-			-if(!options->reload || options->reload && {postdate > lastSearched})
-				WritePost();
-	*/
 	PostData post;
 	xmlDocPtr doc;
 	xmlNodePtr cur;
@@ -156,38 +149,12 @@ void searchBoard(cJSON *board, Context *ctx, int currentDepth) {
 int main(int argc, char **argv) {
 	cJSON *configJson;
 	cJSON *boardJson;
-	cJSON *searchHistory;
 	int ret = 0;
-	Options options = {0};
-
-	/*
-	int c = 0;
-	int reloadFlag = 0;
-	while((c = getopt(argc, argv, "rh")) != -1) {
-		switch(c) {
-			case 'r':
-				reloadFlag = 1;
-				break;
-			case 'h':
-				printHelpText();
-				return 0;
-			default:
-				abort();
-		}
-	}
-	*/
 
 	// Load Config
 	ConfigValues config;
 	if(loadConfig(CONFIG_PATH, &config))
 		return 1;
-
-	// Load search history file
-	searchHistory = loadJson(config.searchHistoryPath);
-
-	if(!searchHistory) {
-		searchHistory = cJSON_CreateObject();	
-	}
 
 	// Load board file
 	boardJson = loadJson(config.boardJsonPath);
@@ -199,19 +166,11 @@ int main(int argc, char **argv) {
 	}
 
 	// Search Boards and Feeds
-	Context ctx = { &config, &options, searchHistory };
+	Context ctx = { &config };
 	searchBoard(boardJson, &ctx, 0);
-
-	// Write History
-	if(writeJson(searchHistory, config.searchHistoryPath)) {
-		printError("Unable to write history.");
-		ret = 1;
-		goto cleanup;
-	}
 
 	writeBulletin();
 
 cleanup:
-	cJSON_Delete(searchHistory);
 	return ret;
 }

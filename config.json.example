@@ -1,8 +1,5 @@
 {
 	"boardGenerationDirectory": "static/",
 	"boardJsonPath": "board.json",
-	"searchHistoryPath": "history.json",
-	"maxTitleLength": 16,
-	"maxDescriptionLength": 350,
 	"searchDepth": 4
 }

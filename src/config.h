@@ -6,9 +6,6 @@
 typedef struct {
 	char boardGenerationDirectory[PATH_MAX];
 	char boardJsonPath[PATH_MAX];
-	char searchHistoryPath[PATH_MAX];
-	int maxTitleLength;
-	int maxDescriptionLength;
 	int searchDepth;
 } ConfigValues;
 
