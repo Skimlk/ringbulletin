@@ -8,19 +8,18 @@
 
 html {
     font-size: 14px;
+    font-family: "Comic Code", monospace;
 }
 
-#outer-body {
+#list-iframe {
     height: 100%;
     width: 100%;
-    font-family: "Comic Code", monospace;
     font-size: 14px;
     background-color: var(--color-bg);
     color: var(--color-text);
 }
 
 .post-inner {
-    font-family: "Comic Code", monospace;
     font-size: 14px;
     color: var(--color-text);
     display: flex;
@@ -180,7 +179,6 @@ details.dropdown-button[open] summary::before {
     margin-top: 0.5rem;
     padding-left: 1rem;
     /*border-left: 2px solid var(--color-accent);*/
-    font-family: "Comic Code", monospace;
     font-size: 0.875rem;
     color: var(--color-text);
 }
@@ -194,7 +192,6 @@ details.dropdown-button[open] summary::before {
     gap: 0.25rem;
     box-shadow: 0 1px 3px var(--color-dropdown-shadow);
     border: 1px solid rgba(81,87,109,0.15);
-    font-family: "Comic Code", monospace;
     font-size: 0.875rem;
     color: var(--color-text);
 }
@@ -203,13 +200,11 @@ details.dropdown-button[open] summary::before {
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--color-post-title);
-    font-family: "Comic Code", monospace;
 }
 
 .reply .post-description {
     font-size: 0.8rem;
     line-height: 1.4;
-    font-family: "Comic Code", monospace;
     color: var(--color-text);
 }
 
@@ -218,5 +213,4 @@ details.dropdown-button[open] summary::before {
     display: flex;
     gap: 0.25rem;
     color: var(--color-accent);
-    font-family: "Comic Code", monospace;
 }

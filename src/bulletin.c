@@ -78,14 +78,13 @@ int writePost(const PostData *post, Context *ctx) {
          (long)now, (unsigned long long)titleHash);
 
     htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
-
     xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
     xmlDocSetRootElement(doc, html);
 
-    xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
+	xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
 		addStyle(head, "../theme.css");
 		addStyle(head, "../board.css");
-	
+
     xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
     xmlNodePtr postElement = addElement(body, "div", NULL, NULL, "post-inner");
         xmlNodePtr postTitle = addElement(postElement, "div", NULL, NULL, "post-title"); 
@@ -182,10 +181,10 @@ int writePost(const PostData *post, Context *ctx) {
     return 0;
 }
 
-int writeBulletin() {
+int writeList() {
     Files *posts = getFiles("./static/posts");
     qsort(posts->filenames, posts->numberOfFiles, sizeof(char *), compare);
-
+   
     htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
     xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
     xmlDocSetRootElement(doc, html);
@@ -193,8 +192,42 @@ int writeBulletin() {
 	xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
 		addStyle(head, "./theme.css");
 		addStyle(head, "./board.css");
-  		
-    xmlNodePtr body = addElement(html, "body", NULL, "outer-body", NULL);
+
+    xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
+    xmlNodePtr list = addElement(body, "div", NULL, "board", NULL);
+        for(int i = 0; i < posts->numberOfFiles; i++) {
+            xmlNodePtr iframe = addElement(list, "iframe", NULL, NULL, "post");
+            char iframePath[BASE_PATH_MAX];
+            printf("%s\n", posts->filenames[i]);
+            snprintf(iframePath, sizeof(iframePath), "./posts/%s", posts->filenames[i]);
+            char *iframePathWithTimestamp = createTimestampedFilename(iframePath, "?");
+            xmlNewProp(iframe, BAD_CAST "src", BAD_CAST iframePathWithTimestamp);
+            free(iframePathWithTimestamp);
+
+            free(posts->filenames[i]);
+        }
+    
+    xmlChar *postSerialized;
+    int size = 0;
+    htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1); 
+
+    if(!postSerialized) {
+        printf("Post was not serialized\n");
+    }   
+
+    writeFile((const char *)postSerialized, &size, "./static/", BAD_CAST "./list.html");
+}
+
+int writeBulletin() {
+    htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
+    xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
+    xmlDocSetRootElement(doc, html);
+
+	xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
+		addStyle(head, "./theme.css");
+		addStyle(head, "./board.css");
+
+    xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
 		xmlNodePtr navbar = addElement(body, "div", NULL, "navbar", NULL);
             xmlNodePtr mainNavbarSection = addElement(navbar, "div", "RingBulletin", "nav-main", NULL);
 			xmlNodePtr rightNavbarSection = addElement(navbar, "div", NULL, "nav-right", NULL);
@@ -210,17 +243,13 @@ int writeBulletin() {
                     xmlNewProp(boardUrl, BAD_CAST "type", BAD_CAST "text");
                     xmlNewProp(boardUrl, BAD_CAST "value", BAD_CAST "https://example.com");
 
-        xmlNodePtr board = addElement(body, "div", NULL, "board", NULL);
-			for (int i = 0; i < posts->numberOfFiles; i++) {
-				xmlNodePtr iframe = addElement(board, "iframe", NULL, NULL, "post");
-				char iframePath[BASE_PATH_MAX];
-				printf("%s\n", posts->filenames[i]);
-				snprintf(iframePath, sizeof(iframePath), "./posts/%s", posts->filenames[i]);
-				xmlNewProp(iframe, BAD_CAST "src", BAD_CAST iframePath);
+        
+        char *listTimestampedFilename = createTimestampedFilename("./list.html", "?");
+        writeList();
+        xmlNodePtr listIFrame = addElement(body, "iframe", NULL, "list-iframe", NULL);
+            xmlNewProp(listIFrame, BAD_CAST "src", listTimestampedFilename);
+        free(listTimestampedFilename);
 
-				free(posts->filenames[i]);
-			}   
-    
     xmlChar *postSerialized;
     int size = 0;
     htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1); 

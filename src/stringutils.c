@@ -1,6 +1,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <time.h>
 
 char *strlwr(char *string) {
 	char *character = string;
@@ -60,4 +62,18 @@ char *extractTimeFromFilename(char *filename) {
 	time[i] = '\0';
 
 	return time;
+}
+
+char *createTimestampedFilename(char *filename, char *seperator) {
+	time_t currentTime = time(NULL);
+	int timestampLength = 10;
+	int sizeOfTimestampedFilename 
+		= sizeof(char) * (strlen(filename) + strlen(seperator) + timestampLength + 1);	
+
+	char *timestampedFilename = malloc(sizeOfTimestampedFilename);
+	
+	snprintf(timestampedFilename, sizeOfTimestampedFilename, 
+		"%s%s%ld", filename, seperator, currentTime);
+
+	return timestampedFilename;
 }

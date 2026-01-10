@@ -6,5 +6,6 @@ extern char *removeReplyPrefix(char *string);
 extern char *strip(char *string);
 extern char *normalize(char *string);
 extern char *extractTimeFromFilename(char *filename);
+extern char *createTimestampedFilename(char *filename, char *seperator);
 
 #endif
