@@ -165,6 +165,13 @@ int main(int argc, char **argv) {
 		goto cleanup;
 	}
 
+	//Remove existing board
+	if(directoryExists(config.boardGenerationDirectory)) {
+		char postsPath[PATH_MAX];
+		snprintf(postsPath, PATH_MAX, "%s/posts/", config.boardGenerationDirectory);
+		processFiles(postsPath, (void *)removeCallback, postsPath);
+	}
+
 	// Search Boards and Feeds
 	Context ctx = { &config };
 	searchBoard(boardJson, &ctx, 0);

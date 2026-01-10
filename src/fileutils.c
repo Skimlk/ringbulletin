@@ -150,6 +150,14 @@ int removeFile(const char *directory, const char *filename) {
 	return 0;
 }
 
+int directoryExists(const char *directoryPath) {
+	DIR *directory = opendir(directoryPath);
+	if(directory != NULL) {
+		closedir(directory);
+		return 1;
+	}
+}
+
 cJSON *loadJson(const char *path) {
 	char *fileContents = readFile(NULL, path);
 	if(!fileContents) {
@@ -209,6 +217,11 @@ int processFiles(char *path, int (*process)(void *, struct dirent *, int), void 
 
 int count(int *counter, struct dirent *unused, int count) {
 	*counter = count + 1;
+	return 0;
+}
+
+int removeCallback(char *directory, struct dirent *file, int count) {
+	removeFile(directory, file->d_name);
 	return 0;
 }
 

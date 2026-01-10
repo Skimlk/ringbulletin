@@ -28,10 +28,12 @@ extern int writeFile(const char *content, const int *size, const char *directory
 extern int copyFile(const char *sourceDirectory, const char *sourceFilename,
     const char *destinationDirectory, const char *destinationFilename);
 extern int removeFile(const char *directory, const char *filename);
+extern int directoryExists(const char *directory);
 extern int compare(const void *a, const void *b);
 extern int processFiles(char *path, int (*process)(void *, struct dirent *, int), void *data);
 extern int count(int *counter, struct dirent *unused, int count);
 extern int populateFilenamesArray(char **filenames, struct dirent *file, int count);
+extern int removeCallback(char *directory, struct dirent *file, int count);
 extern Files *getFilesMatchingPattern(char *directory, int (*pattern)(void *, void *), void *seed);
 extern Files *getFiles(char *directory);
 extern int contains(void *, void *);
