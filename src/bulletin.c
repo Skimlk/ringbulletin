@@ -87,10 +87,11 @@ int writePost(const PostData *post, Context *ctx) {
 
     xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
     xmlNodePtr postElement = addElement(body, "div", NULL, NULL, "post-inner");
-        xmlNodePtr postTitle = addElement(postElement, "div", NULL, NULL, "post-title"); 
-		xmlNodePtr postLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", post->title);
-			xmlNewProp(postLink, BAD_CAST "href", post->link);
-			xmlNewProp(postLink, BAD_CAST "target", BAD_CAST "_blank");
+		xmlNodePtr postHeader = addElement(postElement, "div", NULL, NULL, NULL);
+            xmlNodePtr postTitle = addElement(postHeader, "div", NULL, NULL, "post-title"); 
+            xmlNodePtr postLink = xmlNewChild(postHeader, NULL, BAD_CAST "a", post->title);
+                xmlNewProp(postLink, BAD_CAST "href", post->link);
+                xmlNewProp(postLink, BAD_CAST "target", BAD_CAST "_blank");
 
         xmlNodePtr postMeta = addElement(postElement, "div", NULL, NULL, "post-meta");
 			addElement(postMeta, "span", post->pubDate, NULL, "post-date");
@@ -139,7 +140,6 @@ int writePost(const PostData *post, Context *ctx) {
                 xmlAddChild(replies, imported);
 
                 removeFile("./static/posts/", existingPostsWithHash->filenames[i]);
-                //Make title variable equal to existingPostWithHash-filenames[i]
             }
             //If the existing post has an earlier date, add this post's content
                 //to the existing post
@@ -159,8 +159,14 @@ int writePost(const PostData *post, Context *ctx) {
 
                 xmlChar *buffer = NULL;
                 int size = 0;
+                
+                xmlNodePtr viewOriginalLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST "View Original");
+                    xmlNewProp(viewOriginalLink, BAD_CAST "href", BAD_CAST existingPostsWithHash->filenames[0]);
+                    xmlNewProp(viewOriginalLink, BAD_CAST "target", BAD_CAST "list-iframe");
+
                 htmlDocDumpMemoryFormat(replyDoc, &buffer, &size, 1);
-                writeFile((const char *)buffer, &size, "./static/posts/", filename);
+                
+                writeFile((const char *)buffer, &size, "./static/posts/", existingPostsWithHash->filenames[0]);
                             
                 return 0;
             }
@@ -169,6 +175,11 @@ int writePost(const PostData *post, Context *ctx) {
     
     xmlChar *postSerialized;
     int size = 0;
+    
+    xmlNodePtr viewOriginalLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST "View Original");
+        xmlNewProp(viewOriginalLink, BAD_CAST "href", BAD_CAST filename);
+        xmlNewProp(viewOriginalLink, BAD_CAST "target", BAD_CAST "list-iframe");
+    
     htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1);
 
     if(!postSerialized) {
@@ -229,7 +240,9 @@ int writeBulletin() {
 
     xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
 		xmlNodePtr navbar = addElement(body, "div", NULL, "navbar", NULL);
-            xmlNodePtr mainNavbarSection = addElement(navbar, "div", "RingBulletin", "nav-main", NULL);
+            xmlNodePtr mainNavbarSection = addElement(navbar, "div", NULL, "nav-main", NULL);
+                xmlNodePtr titleLink = addElement(mainNavbarSection, "a", "RingBulletin", "title-link", NULL);
+                    xmlNewProp(titleLink, BAD_CAST "href", BAD_CAST "./board.html");
 			xmlNodePtr rightNavbarSection = addElement(navbar, "div", NULL, "nav-right", NULL);
                 xmlNodePtr aboutDropdown = addDropdownButton(rightNavbarSection, "./assets/svg/help-info-solid.svg");
                 xmlNodeAddContent(aboutDropdown, BAD_CAST "About ");
@@ -248,6 +261,7 @@ int writeBulletin() {
         writeList();
         xmlNodePtr listIFrame = addElement(body, "iframe", NULL, "list-iframe", NULL);
             xmlNewProp(listIFrame, BAD_CAST "src", listTimestampedFilename);
+            xmlNewProp(listIFrame, BAD_CAST "name", BAD_CAST "list-iframe");
         free(listTimestampedFilename);
 
     xmlChar *postSerialized;
