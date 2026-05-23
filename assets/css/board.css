@@ -81,7 +81,6 @@ summary {
     justify-content: center;
     transition: background-color 0.2s ease;
     cursor: pointer;
-    padding: 6px;
 }
 
 .dropdown-button:hover {
@@ -100,8 +99,8 @@ summary {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    height: 100%;
+    width: 32px;
+    height: 32px;
 }
 
 .icon-button svg {
