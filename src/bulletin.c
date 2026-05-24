@@ -1,6 +1,3 @@
-#define __USE_XOPEN
-#define _GNU_SOURCE
-
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -17,65 +14,15 @@
 #include "fileutils.h"
 #include "stringutils.h"
 #include "context.h"
-
-xmlNodePtr addElement(xmlNodePtr parent, const char *tag, const char *text, const char *id, const char *class) {
-    xmlNodePtr node = xmlNewChild(parent, NULL, BAD_CAST tag, text ? BAD_CAST text : NULL);
-    if(id) xmlNewProp(node, BAD_CAST "id", BAD_CAST id);
-    if(class) xmlNewProp(node, BAD_CAST "class", BAD_CAST class);
-    return node;
-}
-
-void addStyle(xmlNodePtr head, const char *stylePath) {
-    xmlNodePtr link = xmlNewChild(head, NULL, BAD_CAST "link", NULL);
-    xmlNewProp(link, BAD_CAST "rel", BAD_CAST "stylesheet");
-    xmlNewProp(link, BAD_CAST "type", BAD_CAST "text/css");
-    xmlNewProp(link, BAD_CAST "href", BAD_CAST stylePath);
-}
-
-xmlNodePtr addDropdownButton(xmlNodePtr parent, char *iconPath) {
-    xmlNodePtr details = addElement(parent, "details", NULL, NULL, "dropdown-button");
-        xmlNodePtr summary = addElement(details, "summary", NULL, NULL, "icon-button");
-            char *icon = readFile(NULL, iconPath);
-            xmlDocPtr iconDoc = xmlReadMemory(
-                icon,
-                (int)strlen(icon),
-                "icon.svg",
-                NULL,
-                XML_PARSE_NOERROR | XML_PARSE_NOWARNING
-            );
-            xmlNodePtr iconRoot = xmlDocGetRootElement(iconDoc);
-            xmlNodePtr importedIcon = xmlDocCopyNode(iconRoot, parent->doc, 1);
-            xmlAddChild(summary, importedIcon);
-   
-        xmlNodePtr dropdownMenu = addElement(details, "div", NULL, NULL, "dropdown-menu");
-
-    return dropdownMenu;
-}
+#include "xmlutils.h"
 
 int writePost(const PostData *post, Context *ctx) {
+    // Normalize and Hash Title
     char normalizedTitle[strlen(post->title)+1];
     strcpy(normalizedTitle, post->title);
     normalize(normalizedTitle);
  
     XXH64_hash_t titleHash = XXH64(normalizedTitle, strlen(normalizedTitle), 0);
-
-    struct tm tm = {0};
-
-    if (strptime(post->pubDate, "%a, %d %b %Y %H:%M:%S %z", &tm) == NULL
-        && strptime(post->pubDate, "%a, %d %b %Y %H:%M:%S GMT", &tm) == NULL
-    ) {
-        fprintf(stderr, "Failed to parse date-time.\n");
-        return 1;
-    }
-
-    time_t now = mktime(&tm);
-
-    char filename[64];
-
-    char postTimeString[13];
-    snprintf(postTimeString, sizeof(postTimeString), "%ld", (long)now);
-    snprintf(filename, sizeof(filename), "%ld_%016llu.html",
-         (long)now, (unsigned long long)titleHash);
 
     htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
     xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
@@ -89,9 +36,15 @@ int writePost(const PostData *post, Context *ctx) {
     xmlNodePtr postElement = addElement(body, "div", NULL, NULL, "post-inner");
 		xmlNodePtr postHeader = addElement(postElement, "div", NULL, NULL, NULL);
             xmlNodePtr postTitle = addElement(postHeader, "div", NULL, NULL, "post-title"); 
-            xmlNodePtr postLink = xmlNewChild(postHeader, NULL, BAD_CAST "a", post->title);
-                xmlNewProp(postLink, BAD_CAST "href", post->link);
-                xmlNewProp(postLink, BAD_CAST "target", BAD_CAST "_blank");
+                xmlNodePtr postLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", post->title);
+                    xmlNewProp(postLink, BAD_CAST "href", post->link);
+                    xmlNewProp(postLink, BAD_CAST "target", BAD_CAST "_blank");
+                
+                xmlNodePtr titleViewSeparator = xmlNewChild(postTitle, NULL, BAD_CAST "span", " • ");
+
+                xmlNodePtr viewThreadLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST "View Thread");
+                    xmlNewProp(viewThreadLink, BAD_CAST "href", BAD_CAST "");
+                    xmlNewProp(viewThreadLink, BAD_CAST "target", BAD_CAST "list-iframe");
 
         xmlNodePtr postMeta = addElement(postElement, "div", NULL, NULL, "post-meta");
 			addElement(postMeta, "span", post->pubDate, NULL, "post-date");
@@ -108,77 +61,73 @@ int writePost(const PostData *post, Context *ctx) {
 	char titleHashString[40];
 	snprintf(titleHashString, sizeof(titleHashString), "%lu", titleHash);
 
+    time_t pubDateUnixTimestamp = getUnixTimestampFromTimeFormatString(post->pubDate);
+
+    char filename[64];
+
     Files *existingPostsWithHash = getFilesMatchingPattern("./static/posts", contains, titleHashString);
     printf("Number of files: %d", existingPostsWithHash->numberOfFiles);
     for(int i = 0; i < existingPostsWithHash->numberOfFiles; i++) {
         char *existingPostWithHashTime = extractTimeFromFilename(existingPostsWithHash->filenames[i]);
+        
+        //Add feed to history
+        char *replyFile = readFile("./static/posts/", existingPostsWithHash->filenames[i]);
+        htmlDocPtr replyDoc = htmlReadMemory(replyFile, strlen(replyFile), NULL, "UTF-8", 0);
+        xmlXPathContextPtr ctx = xmlXPathNewContext(replyDoc); 
+        
+        //If the existing post has a later date, add the existing post content
+            //to this post and overwrite the existing post with this one
+        if(strcmp(post->pubDate, existingPostWithHashTime) < 0) {
+            xmlXPathObjectPtr innerPost = xmlXPathEvalExpression(
+                BAD_CAST "//*[@class='post-inner']",
+                ctx
+            );
 
-        //If there's an existing post with the same hash
-            // Not imp: And the post has not been searched
-            // Iterate through history under feedurl>searchedFeeds
+            xmlNodePtr sameHashPost = innerPost->nodesetval->nodeTab[0];
+            xmlUnsetProp(sameHashPost, BAD_CAST "class");
+            xmlNewProp(sameHashPost, BAD_CAST "class", BAD_CAST "reply");
 
-        if(strcmp(existingPostsWithHash->filenames[i], filename) != 0) {
-            //Add feed to history
-            char *replyFile = readFile("./static/posts/", existingPostsWithHash->filenames[i]);
-            htmlDocPtr replyDoc = htmlReadMemory(replyFile, strlen(replyFile), NULL, "UTF-8", 0);
-            xmlXPathContextPtr ctx = xmlXPathNewContext(replyDoc);
+            xmlNodePtr imported = xmlDocCopyNode(sameHashPost, replies->doc, 1);
+
+            xmlAddChild(replies, imported);
+
+            removeFile("./static/posts/", existingPostsWithHash->filenames[i]);
+        }
+        //If the existing post has an earlier date, add this post's content
+            //to the existing post
+        else {
+            xmlXPathObjectPtr matchingHashReplies = xmlXPathEvalExpression(
+                BAD_CAST "//*[@class='replies']",
+                ctx
+            );
+
+            xmlNodePtr repliesNode = matchingHashReplies->nodesetval->nodeTab[0];
+
+            xmlUnsetProp(postElement, BAD_CAST "class");
+            xmlNewProp(postElement, BAD_CAST "class", BAD_CAST "reply");
+
+            xmlNodePtr imported = xmlDocCopyNode(postElement, replyDoc, 1);
+            xmlAddChild(repliesNode, imported);
+
+            xmlChar *buffer = NULL;
+            int size = 0;
             
-            //If the existing post has a later date, add the existing post content
-                //to this post and overwrite the existing post with this one
-            if(strcmp(postTimeString, existingPostWithHashTime) < 0) {
-                xmlXPathObjectPtr innerPost = xmlXPathEvalExpression(
-                    BAD_CAST "//*[@class='post-inner']",
-                    ctx
-                );
+            htmlDocDumpMemoryFormat(replyDoc, &buffer, &size, 1);
 
-                xmlNodePtr sameHashPost = innerPost->nodesetval->nodeTab[0];
-                xmlUnsetProp(sameHashPost, BAD_CAST "class");
-                xmlNewProp(sameHashPost, BAD_CAST "class", BAD_CAST "reply");
-
-                xmlNodePtr imported = xmlDocCopyNode(sameHashPost, replies->doc, 1);
-
-                xmlAddChild(replies, imported);
-
-                removeFile("./static/posts/", existingPostsWithHash->filenames[i]);
-            }
-            //If the existing post has an earlier date, add this post's content
-                //to the existing post
-            else {
-                xmlXPathObjectPtr matchingHashReplies = xmlXPathEvalExpression(
-                    BAD_CAST "//*[@class='replies']",
-                    ctx
-                );
-
-                xmlNodePtr repliesNode = matchingHashReplies->nodesetval->nodeTab[0];
-
-                xmlUnsetProp(postElement, BAD_CAST "class");
-                xmlNewProp(postElement, BAD_CAST "class", BAD_CAST "reply");
-
-                xmlNodePtr imported = xmlDocCopyNode(postElement, replyDoc, 1);
-                xmlAddChild(repliesNode, imported);
-
-                xmlChar *buffer = NULL;
-                int size = 0;
-                
-                xmlNodePtr viewOriginalLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST "View Original");
-                    xmlNewProp(viewOriginalLink, BAD_CAST "href", BAD_CAST existingPostsWithHash->filenames[0]);
-                    xmlNewProp(viewOriginalLink, BAD_CAST "target", BAD_CAST "list-iframe");
-
-                htmlDocDumpMemoryFormat(replyDoc, &buffer, &size, 1);
-                
-                writeFile((const char *)buffer, &size, "./static/posts/", existingPostsWithHash->filenames[0]);
-                            
-                return 0;
-            }
+            snprintf(filename, sizeof(filename), "%s_%016llu.html",
+                existingPostWithHashTime, (unsigned long long)titleHash);
+            
+            writeFile((const char *)buffer, &size, "./static/posts/", filename);
+                        
+            return 0;
         }
     }
-    
+
+    snprintf(filename, sizeof(filename), "%ld_%016llu.html",
+        (long)pubDateUnixTimestamp, (unsigned long long)titleHash);
+
     xmlChar *postSerialized;
-    int size = 0;
-    
-    xmlNodePtr viewOriginalLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST "View Original");
-        xmlNewProp(viewOriginalLink, BAD_CAST "href", BAD_CAST filename);
-        xmlNewProp(viewOriginalLink, BAD_CAST "target", BAD_CAST "list-iframe");
+    int size = 0; 
     
     htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1);
 
@@ -207,7 +156,19 @@ int writeList() {
     xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
     xmlNodePtr list = addElement(body, "div", NULL, "board", NULL);
         for(int i = 0; i < posts->numberOfFiles; i++) {
+            char *fileContents = readFile("./static/posts/", posts->filenames[i]);
+            htmlDocPtr fileDocPtr = htmlReadMemory(fileContents, strlen(fileContents), NULL, "UTF-8", 0);
+            xmlXPathContextPtr ctx = xmlXPathNewContext(fileDocPtr);
+            xmlXPathObjectPtr replies = xmlXPathEvalExpression(
+                (xmlChar*)"//*[@class='reply']",
+                ctx
+            );
+
+            char replyVariableString[256];
+            sprintf(replyVariableString, "--replies: %d;", replies->nodesetval->nodeNr);
+
             xmlNodePtr iframe = addElement(list, "iframe", NULL, NULL, "post");
+                xmlNewProp(iframe, BAD_CAST "style", replyVariableString);
             char iframePath[BASE_PATH_MAX];
             printf("%s\n", posts->filenames[i]);
             snprintf(iframePath, sizeof(iframePath), "./posts/%s", posts->filenames[i]);
@@ -255,7 +216,6 @@ int writeBulletin() {
                 xmlNodePtr boardUrl = xmlNewChild(copyDropdown, NULL, BAD_CAST "input", NULL);
                     xmlNewProp(boardUrl, BAD_CAST "type", BAD_CAST "text");
                     xmlNewProp(boardUrl, BAD_CAST "value", BAD_CAST "https://example.com");
-
         
         char *listTimestampedFilename = createTimestampedFilename("./list.html", "?");
         writeList();
@@ -273,8 +233,8 @@ int writeBulletin() {
     }   
 
     writeFile((const char *)postSerialized, &size, "./static/", "board.html");
-    copyFile("./assets/css/", "theme.css", "./static/", "theme.css");   
-    copyFile("./assets/css/", "board.css", "./static/", "board.css");   
+    copyFile("./assets/css/", "theme.css", "./static/", "theme.css"); 
+    copyFile("./assets/css/", "board.css", "./static/", "board.css"); 
     
 	return 0;   
 }

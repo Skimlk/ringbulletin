@@ -1,3 +1,6 @@
+#define __USE_XOPEN
+#define _GNU_SOURCE
+
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -76,4 +79,21 @@ char *createTimestampedFilename(char *filename, char *seperator) {
 		"%s%s%ld", filename, seperator, currentTime);
 
 	return timestampedFilename;
+}
+
+time_t getUnixTimestampFromTimeFormatString(char *timeFormatString) {
+    struct tm timeStructHelper = {0};
+
+    char *timeFormats[] = {
+        "%a, %d %b %Y %H:%M:%S %z",
+        "%a, %d %b %Y %H:%M:%S GMT",
+    };
+
+    for(long unsigned int i = 0; i < sizeof(timeFormats) / sizeof(char *); i++) {
+        if(strptime(timeFormatString, timeFormats[i], &timeStructHelper) != NULL)
+            return mktime(&timeStructHelper); 
+    }
+
+    fprintf(stderr, "Failed to parse date-time.\n");
+    return 1;
 }

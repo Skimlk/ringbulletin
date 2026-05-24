@@ -7,5 +7,6 @@ extern char *strip(char *string);
 extern char *normalize(char *string);
 extern char *extractTimeFromFilename(char *filename);
 extern char *createTimestampedFilename(char *filename, char *seperator);
+extern time_t getUnixTimestampFromTimeFormatString(char *timeFormatString);
 
 #endif
