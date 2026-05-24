@@ -44,7 +44,7 @@ int writePost(const PostData *post, Context *ctx) {
 
                 xmlNodePtr viewThreadLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST "View Thread");
                     xmlNewProp(viewThreadLink, BAD_CAST "href", BAD_CAST "");
-                    xmlNewProp(viewThreadLink, BAD_CAST "target", BAD_CAST "list-iframe");
+                    xmlNewProp(viewThreadLink, BAD_CAST "target", BAD_CAST "content-iframe");
 
         xmlNodePtr postMeta = addElement(postElement, "div", NULL, NULL, "post-meta");
 			addElement(postMeta, "span", post->pubDate, NULL, "post-date");
@@ -219,9 +219,9 @@ int writeBulletin() {
         
         char *listTimestampedFilename = createTimestampedFilename("./list.html", "?");
         writeList();
-        xmlNodePtr listIFrame = addElement(body, "iframe", NULL, "list-iframe", NULL);
+        xmlNodePtr listIFrame = addElement(body, "iframe", NULL, "content-iframe", NULL);
             xmlNewProp(listIFrame, BAD_CAST "src", listTimestampedFilename);
-            xmlNewProp(listIFrame, BAD_CAST "name", BAD_CAST "list-iframe");
+            xmlNewProp(listIFrame, BAD_CAST "name", BAD_CAST "content-iframe");
         free(listTimestampedFilename);
 
     xmlChar *postSerialized;
