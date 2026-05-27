@@ -40,12 +40,6 @@ int writePost(const PostData *post, Context *ctx) {
                     xmlNewProp(postLink, BAD_CAST "href", post->link);
                     xmlNewProp(postLink, BAD_CAST "target", BAD_CAST "_blank");
                 
-                xmlNodePtr titleViewSeparator = xmlNewChild(postTitle, NULL, BAD_CAST "span", " • ");
-
-                xmlNodePtr viewThreadLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST "View Thread");
-                    xmlNewProp(viewThreadLink, BAD_CAST "href", BAD_CAST "");
-                    xmlNewProp(viewThreadLink, BAD_CAST "target", BAD_CAST "content-iframe");
-
         xmlNodePtr postMeta = addElement(postElement, "div", NULL, NULL, "post-meta");
 			addElement(postMeta, "span", post->pubDate, NULL, "post-date");
 			xmlNewChild(postMeta, NULL, BAD_CAST "span", BAD_CAST " • ");
@@ -155,26 +149,40 @@ int writeList() {
 
     xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
     xmlNodePtr list = addElement(body, "div", NULL, "board", NULL);
+        char fullpath[256];
         for(int i = 0; i < posts->numberOfFiles; i++) {
+            sprintf(fullpath, "./posts/%s", posts->filenames[i]);
+
+            xmlNodePtr viewThreadLink = xmlNewChild(list, NULL, BAD_CAST "a", BAD_CAST "View Thread");
+                    xmlNewProp(viewThreadLink, BAD_CAST "href", BAD_CAST fullpath);
+                    xmlNewProp(viewThreadLink, BAD_CAST "target", BAD_CAST "content-iframe");
+
             char *fileContents = readFile("./static/posts/", posts->filenames[i]);
             htmlDocPtr fileDocPtr = htmlReadMemory(fileContents, strlen(fileContents), NULL, "UTF-8", 0);
             xmlXPathContextPtr ctx = xmlXPathNewContext(fileDocPtr);
-            xmlXPathObjectPtr replies = xmlXPathEvalExpression(
-                (xmlChar*)"//*[@class='reply']",
+
+            xmlXPathObjectPtr postInner = xmlXPathEvalExpression(
+                (const xmlChar *)"//div[contains(@class,'post-inner')]",
                 ctx
             );
 
-            char replyVariableString[256];
-            sprintf(replyVariableString, "--replies: %d;", replies->nodesetval->nodeNr);
+            xmlNodePtr copyPostInner = xmlDocCopyNode(postInner->nodesetval->nodeTab[0], list->doc, 1);
+            xmlAddChild(list, copyPostInner);
+            
+            xmlXPathObjectPtr previewReplies = xmlXPathEvalExpression(
+                (const xmlChar *)
+                "//div[contains(@class,'replies')]/*[position() >= last() - 2]",
+                ctx
+            );
 
-            xmlNodePtr iframe = addElement(list, "iframe", NULL, NULL, "post");
-                xmlNewProp(iframe, BAD_CAST "style", replyVariableString);
-            char iframePath[BASE_PATH_MAX];
-            printf("%s\n", posts->filenames[i]);
-            snprintf(iframePath, sizeof(iframePath), "./posts/%s", posts->filenames[i]);
-            char *iframePathWithTimestamp = createTimestampedFilename(iframePath, "?");
-            xmlNewProp(iframe, BAD_CAST "src", BAD_CAST iframePathWithTimestamp);
-            free(iframePathWithTimestamp);
+            if (previewReplies && previewReplies->nodesetval) {
+                for (int i = 0; i < previewReplies->nodesetval->nodeNr; i++) {
+                    xmlNodePtr copy = xmlDocCopyNode(previewReplies->nodesetval->nodeTab[i], list->doc, 1);
+                    xmlAddChild(list, copy);
+                }
+            }
+
+            xmlXPathFreeObject(previewReplies);
 
             free(posts->filenames[i]);
         }
