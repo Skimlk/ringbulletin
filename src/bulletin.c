@@ -171,12 +171,16 @@ int writeList() {
             
             xmlXPathObjectPtr previewReplies = xmlXPathEvalExpression(
                 (const xmlChar *)
-                "//div[contains(@class,'replies')]/*[position() >= last() - 2]",
+                "//div[contains(@class,'replies')]/*",
                 ctx
             );
 
             if (previewReplies && previewReplies->nodesetval) {
-                for (int i = 0; i < previewReplies->nodesetval->nodeNr; i++) {
+                int previewPostCount = 3;
+                int previewStartIndex = (previewReplies->nodesetval->nodeNr - previewPostCount < 0) ? 0
+                    : previewReplies->nodesetval->nodeNr - previewPostCount;
+
+                for (int i = previewStartIndex; i < previewReplies->nodesetval->nodeNr; i++) {
                     xmlNodePtr copy = xmlDocCopyNode(previewReplies->nodesetval->nodeTab[i], list->doc, 1);
                     xmlAddChild(list, copy);
                 }
