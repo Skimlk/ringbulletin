@@ -21,16 +21,22 @@ char *removeReplyPrefix(char *string) {
 	char *replyPrefix = "re:";
 	int replyPrefixLength = strlen(replyPrefix);
 
-	if (strncmp(string, replyPrefix, replyPrefixLength) != 0) { 
+	char *replyPrefixLocation = strstr(string, replyPrefix);
+	if (!replyPrefixLocation) { 
 		return string;
 	}
 
+	int indexOfOriginalTitle = (replyPrefixLocation - string) + replyPrefixLength;
+
 	int stringLength = strlen(string);
-	for(int i = replyPrefixLength; i <= stringLength; i++) {
-		string[i - replyPrefixLength] = string[i];
+	size_t i;
+	for(i = indexOfOriginalTitle; i < stringLength; i++) {
+		string[i - indexOfOriginalTitle] = string[i];
 	}
 
-	return string;
+	string[i - indexOfOriginalTitle] = '\0';
+
+	return string;	
 }
 
 char *strip(char *string) {
@@ -47,11 +53,14 @@ char *strip(char *string) {
 }
 
 char *normalize(char *string) {
-	return strip(
+	char *str = strip(
 		removeReplyPrefix(
 			strlwr(string)
 		)
 	);
+
+	printf("\n%s\n\n", str);
+	return str;
 }
 
 char *extractTimeFromFilename(char *filename) {
