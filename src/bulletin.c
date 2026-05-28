@@ -33,8 +33,8 @@ int writePost(const PostData *post, Context *ctx) {
 		addStyle(head, "../board.css");
 
     xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
-    xmlNodePtr postElement = addElement(body, "div", NULL, NULL, "post-inner");
-		xmlNodePtr postHeader = addElement(postElement, "div", NULL, NULL, NULL);
+    xmlNodePtr postElement = addElement(body, "div", NULL, NULL, "post");
+		xmlNodePtr postHeader = addElement(postElement, "div", NULL, NULL, "post-header");
             xmlNodePtr postTitle = addElement(postHeader, "div", NULL, NULL, "post-title"); 
                 xmlNodePtr postLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", post->title);
                     xmlNewProp(postLink, BAD_CAST "href", post->link);
@@ -73,7 +73,7 @@ int writePost(const PostData *post, Context *ctx) {
             //to this post and overwrite the existing post with this one
         if(strcmp(post->pubDate, existingPostWithHashTime) < 0) {
             xmlXPathObjectPtr innerPost = xmlXPathEvalExpression(
-                BAD_CAST "//*[@class='post-inner']",
+                BAD_CAST "//*[@class='post']",
                 ctx
             );
 
@@ -106,7 +106,7 @@ int writePost(const PostData *post, Context *ctx) {
             xmlChar *buffer = NULL;
             int size = 0;
             
-            htmlDocDumpMemoryFormat(replyDoc, &buffer, &size, 1);
+            htmlDocDumpMemoryFormat(replyDoc, &buffer, &size, 0);
 
             snprintf(filename, sizeof(filename), "%s_%016llu.html",
                 existingPostWithHashTime, (unsigned long long)titleHash);
@@ -123,7 +123,7 @@ int writePost(const PostData *post, Context *ctx) {
     xmlChar *postSerialized;
     int size = 0; 
     
-    htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1);
+    htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 0);
 
     if(!postSerialized) {
         printf("Post was not serialized\n");
@@ -153,20 +153,21 @@ int writeList() {
         for(int i = 0; i < posts->numberOfFiles; i++) {
             sprintf(fullpath, "./posts/%s", posts->filenames[i]);
 
-            xmlNodePtr viewThreadLink = xmlNewChild(list, NULL, BAD_CAST "a", BAD_CAST "View Thread");
-                    xmlNewProp(viewThreadLink, BAD_CAST "href", BAD_CAST fullpath);
-                    xmlNewProp(viewThreadLink, BAD_CAST "target", BAD_CAST "content-iframe");
-
             char *fileContents = readFile("./static/posts/", posts->filenames[i]);
             htmlDocPtr fileDocPtr = htmlReadMemory(fileContents, strlen(fileContents), NULL, "UTF-8", 0);
             xmlXPathContextPtr ctx = xmlXPathNewContext(fileDocPtr);
 
             xmlXPathObjectPtr postInner = xmlXPathEvalExpression(
-                (const xmlChar *)"//div[contains(@class,'post-inner')]",
+                (const xmlChar *)"//div[contains(@class,'post')]",
                 ctx
             );
 
             xmlNodePtr copyPostInner = xmlDocCopyNode(postInner->nodesetval->nodeTab[0], list->doc, 1);
+                xmlNewChild(copyPostInner->children->children, NULL, BAD_CAST "span", BAD_CAST " • ");
+                xmlNodePtr viewThreadLink = xmlNewChild(copyPostInner->children->children, NULL, BAD_CAST "a", BAD_CAST "View Thread");
+                        xmlNewProp(viewThreadLink, BAD_CAST "href", BAD_CAST fullpath);
+                        xmlNewProp(viewThreadLink, BAD_CAST "target", BAD_CAST "content-iframe");
+            
             xmlAddChild(list, copyPostInner);
             
             xmlXPathObjectPtr previewReplies = xmlXPathEvalExpression(
