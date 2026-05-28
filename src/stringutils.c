@@ -53,14 +53,11 @@ char *strip(char *string) {
 }
 
 char *normalize(char *string) {
-	char *str = strip(
+	return strip(
 		removeReplyPrefix(
 			strlwr(string)
 		)
 	);
-
-	printf("\n%s\n\n", str);
-	return str;
 }
 
 char *extractTimeFromFilename(char *filename) {
