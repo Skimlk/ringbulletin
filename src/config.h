@@ -4,8 +4,9 @@
 #include "fileutils.h"
 
 typedef struct {
-	char boardGenerationDirectory[PATH_MAX];
+	char boardJsonUrl[2048];
 	char boardJsonPath[PATH_MAX];
+	char boardGenerationDirectory[PATH_MAX];
 	int searchDepth;
 } ConfigValues;
 

@@ -176,7 +176,7 @@ int main(int argc, char **argv) {
 	Context ctx = { &config };
 	searchBoard(boardJson, &ctx, 0);
 
-	writeBulletin();
+	writeBulletin(&ctx);
 
 cleanup:
 	return ret;

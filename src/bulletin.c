@@ -203,7 +203,7 @@ int writeList() {
     writeFile((const char *)postSerialized, &size, "./static/", BAD_CAST "./list.html");
 }
 
-int writeBulletin() {
+int writeBulletin(Context *ctx) {
     htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
     xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
     xmlDocSetRootElement(doc, html);
@@ -228,7 +228,7 @@ int writeBulletin() {
                 xmlNodeAddContent(copyDropdown, BAD_CAST "Board URL:");
                 xmlNodePtr boardUrl = xmlNewChild(copyDropdown, NULL, BAD_CAST "input", NULL);
                     xmlNewProp(boardUrl, BAD_CAST "type", BAD_CAST "text");
-                    xmlNewProp(boardUrl, BAD_CAST "value", BAD_CAST "https://example.com");
+                    xmlNewProp(boardUrl, BAD_CAST "value", ctx->config->boardJsonUrl);
         
         char *listTimestampedFilename = createTimestampedFilename("./list.html", "?");
         writeList();

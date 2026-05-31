@@ -1,5 +1,6 @@
 {
-	"boardGenerationDirectory": "static/",
+	"boardJsonUrl": "https://example.com/ringbulletin/static/board.json",
 	"boardJsonPath": "board.json",
+	"boardGenerationDirectory": "static/",
 	"searchDepth": 4
 }
