@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
 		return 1;
 
 	// Load board file
-	boardJson = loadJson(config.boardJsonPath);
+	boardJson = loadJson(NULL, config.boardJsonPath);
 
 	if(!boardJson) {
 		printError("Unable to load board values.");

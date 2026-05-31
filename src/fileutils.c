@@ -158,8 +158,8 @@ int directoryExists(const char *directoryPath) {
 	}
 }
 
-cJSON *loadJson(const char *path) {
-	char *fileContents = readFile(NULL, path);
+cJSON *loadJson(const char *directory, const char *path) {
+	char *fileContents = readFile(directory, path);
 	if(!fileContents) {
 		return NULL;
 	}
@@ -179,7 +179,7 @@ cJSON *loadJson(const char *path) {
 	return json;
 }
 
-int writeJson(const cJSON *json, const char *path) {
+int writeJson(const cJSON *json, const char *directory, const char *path) {
 	char *jsonData = cJSON_Print(json);
 
 	if(!jsonData) {
@@ -187,7 +187,7 @@ int writeJson(const cJSON *json, const char *path) {
 		return 1;
 	}
 
-	writeFile(jsonData, 0, 0, path);
+	writeFile(jsonData, 0, directory, path);
 
 	cJSON_free(jsonData);
 

@@ -37,7 +37,7 @@ int loadStringValue(char *configValue, const cJSON *configJson, const char *key,
 
 int loadConfig(char *configPath, ConfigValues *configValues) {
 	int ret = 0;
-	cJSON *configJson = loadJson(configPath);
+	cJSON *configJson = loadJson(NULL, configPath);
 	if(!configJson) {
 		ret = 1;
 		goto cleanup;
@@ -45,8 +45,8 @@ int loadConfig(char *configPath, ConfigValues *configValues) {
 
 	if(
 		loadStringValue(configValues->boardJsonUrl, configJson, "boardJsonUrl", URL_MAX) ||
-		loadStringValue(configValues->boardGenerationDirectory, configJson, "boardGenerationDirectory", PATH_MAX) ||
 		loadStringValue(configValues->boardJsonPath, configJson, "boardJsonPath", PATH_MAX) ||
+		loadStringValue(configValues->boardGenerationDirectory, configJson, "boardGenerationDirectory", PATH_MAX) ||
 		loadIntValue(&configValues->searchDepth, configJson, "searchDepth")
 	) {
 		printf("Unable to load config values.");

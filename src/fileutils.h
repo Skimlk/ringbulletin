@@ -21,9 +21,9 @@ typedef struct {
     void *seed;
 } Pattern;
 
-extern cJSON *loadJson(const char *path);
+extern cJSON *loadJson(const char *directory, const char *path);
 extern char *readFile(const char *directory, const char *filename);
-extern int writeJson(const cJSON *json, const char *path);
+extern int writeJson(const cJSON *json, const char *directory, const char *path);
 extern int writeFile(const char *content, const int *size, const char *directory, const char *filename);
 extern int copyFile(const char *sourceDirectory, const char *sourceFilename,
     const char *destinationDirectory, const char *destinationFilename);
