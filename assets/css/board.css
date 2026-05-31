@@ -81,7 +81,6 @@ summary {
     transition: background-color 0.2s ease;
     cursor: pointer;
     position: relative;
-    z-index: 1001;
 }
 
 .dropdown-button:hover {
