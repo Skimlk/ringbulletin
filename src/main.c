@@ -24,6 +24,46 @@
 #define PROGRAM_TITLE "ringbulletin"
 #define CONFIG_PATH "config.json"
 
+int searchedAlready(Context *ctx, const char *categoryString, const char *itemString) {
+	int searchedAlready = 1;
+
+	const cJSON *history = loadJson(ctx->config->boardGenerationDirectory, "history.json");
+	if (history == NULL) {
+		history = cJSON_CreateObject();
+		searchedAlready = 0;
+	}
+
+	const cJSON *categoryJson = cJSON_GetObjectItemCaseSensitive(history, categoryString);
+
+	if (categoryJson == NULL) {
+		categoryJson = cJSON_CreateObject();
+		cJSON_AddItemToObject(history, categoryString, categoryJson);
+		searchedAlready = 0;
+	}
+
+	const cJSON *itemJson = cJSON_GetObjectItemCaseSensitive(categoryJson, itemString);
+	
+	if (itemJson == NULL) {
+		itemJson = cJSON_CreateObject();
+		cJSON_AddItemToObject(categoryJson, itemString, itemJson);
+		searchedAlready = 0;
+	}
+
+	const cJSON *lastSearched = cJSON_GetObjectItemCaseSensitive(itemJson, "lastSearched");
+	if(lastSearched == NULL || lastSearched->valuedouble < ctx->searchStartTime) {
+		lastSearched = cJSON_CreateObject();
+		cJSON_DeleteItemFromObjectCaseSensitive(itemJson, "lastSearched");
+		cJSON_AddNumberToObject(itemJson, "lastSearched", time(NULL));
+		searchedAlready = 0;
+	}
+	
+	if (!searchedAlready) {
+		writeJson(history, ctx->config->boardGenerationDirectory, "history.json");
+	}
+
+	return searchedAlready;
+}
+
 void printUsage() {
 	printf("\nUsage: %s [OPTION]...\n\n", PROGRAM_TITLE);
 }
@@ -112,13 +152,15 @@ void searchBoard(cJSON *board, Context *ctx, int currentDepth) {
 
 	if(feedUrls) {
 		cJSON_ArrayForEach(feedUrl, feedUrls) {
-			feed = fetch(feedUrl->valuestring);
-			if(feed) {
-				printf("Fetched feed at '%s'.\n", feedUrl->valuestring);
-				processFeed(feed, ctx, feedUrl->valuestring);
-				free(feed);
-			} else {
-				printf("Couldn't fetch feed at '%s'.\n", feedUrl->valuestring);
+			if(!searchedAlready(ctx, "feeds", feedUrl->valuestring)) {
+				feed = fetch(feedUrl->valuestring);
+				if(feed) {
+					printf("Fetched feed at '%s'.\n", feedUrl->valuestring);
+					processFeed(feed, ctx, feedUrl->valuestring);
+					free(feed);
+				} else {
+					printf("Couldn't fetch feed at '%s'.\n", feedUrl->valuestring);
+				}
 			}
 		}
 	}
@@ -131,13 +173,15 @@ void searchBoard(cJSON *board, Context *ctx, int currentDepth) {
 
 	if(peers && ctx->config->searchDepth >= currentDepth) {
 		cJSON_ArrayForEach(peer, peers) {
-			peerBoard = fetch(peer->valuestring);
-			peerBoardJson = cJSON_Parse(peerBoard);
-			free(peerBoard);
-			if(peerBoardJson) {
-				searchBoard(peerBoardJson, ctx, currentDepth+1);
-			} else {
-				printf("Couldn't fetch board at '%s'.\n", peer->valuestring);
+			if(!searchedAlready(ctx, "boards", peer->valuestring)) {
+				peerBoard = fetch(peer->valuestring);
+				peerBoardJson = cJSON_Parse(peerBoard);
+				free(peerBoard);
+				if(peerBoardJson) {
+					searchBoard(peerBoardJson, ctx, currentDepth+1);
+				} else {
+					printf("Couldn't fetch board at '%s'.\n", peer->valuestring);
+				}
 			}
 		}
 		
@@ -173,7 +217,8 @@ int main(int argc, char **argv) {
 	}
 
 	// Search Boards and Feeds
-	Context ctx = { &config };
+	Context ctx = { &config, time(NULL) };
+	searchedAlready(&ctx, "boards", config.boardJsonUrl);
 	searchBoard(boardJson, &ctx, 0);
 
 	writeBulletin(&ctx);
