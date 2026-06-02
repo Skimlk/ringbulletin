@@ -24,46 +24,6 @@
 #define PROGRAM_TITLE "ringbulletin"
 #define CONFIG_PATH "config.json"
 
-int searchedAlready(Context *ctx, const char *categoryString, const char *itemString) {
-	int searchedAlready = 1;
-
-	const cJSON *history = loadJson(ctx->config->boardGenerationDirectory, "history.json");
-	if (history == NULL) {
-		history = cJSON_CreateObject();
-		searchedAlready = 0;
-	}
-
-	const cJSON *categoryJson = cJSON_GetObjectItemCaseSensitive(history, categoryString);
-
-	if (categoryJson == NULL) {
-		categoryJson = cJSON_CreateObject();
-		cJSON_AddItemToObject(history, categoryString, categoryJson);
-		searchedAlready = 0;
-	}
-
-	const cJSON *itemJson = cJSON_GetObjectItemCaseSensitive(categoryJson, itemString);
-	
-	if (itemJson == NULL) {
-		itemJson = cJSON_CreateObject();
-		cJSON_AddItemToObject(categoryJson, itemString, itemJson);
-		searchedAlready = 0;
-	}
-
-	const cJSON *lastSearched = cJSON_GetObjectItemCaseSensitive(itemJson, "lastSearched");
-	if(lastSearched == NULL || lastSearched->valuedouble < ctx->searchStartTime) {
-		lastSearched = cJSON_CreateObject();
-		cJSON_DeleteItemFromObjectCaseSensitive(itemJson, "lastSearched");
-		cJSON_AddNumberToObject(itemJson, "lastSearched", time(NULL));
-		searchedAlready = 0;
-	}
-	
-	if (!searchedAlready) {
-		writeJson(history, ctx->config->boardGenerationDirectory, "history.json");
-	}
-
-	return searchedAlready;
-}
-
 void printUsage() {
 	printf("\nUsage: %s [OPTION]...\n\n", PROGRAM_TITLE);
 }
@@ -77,6 +37,19 @@ void printHelpText() {
 
 void printError(char *msg) {
 	fprintf(stderr, "%s: error: %s\n", PROGRAM_TITLE, msg);
+}
+
+int searchedAlready(Context *ctx, const char *categoryString, const char *itemString) {
+	double lastSearched;
+
+	if (getJsonHistoryItemNumber(ctx, categoryString, itemString, "lastSearched", &lastSearched) != 0
+		|| lastSearched < ctx->searchStartTime
+	) {
+		updateJsonHistoryItemNumber(ctx, categoryString, itemString, "lastSearched", time(NULL));
+		return 0;
+	}
+
+	return 1;
 }
 
 void processFeed(char *feed, Context *ctx, char *url) {

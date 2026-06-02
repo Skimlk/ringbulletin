@@ -6,7 +6,7 @@
 
 #include "config.h"
 
-typedef struct {
+typedef struct Context {
 	ConfigValues *config;
 	time_t searchStartTime;
 } Context;

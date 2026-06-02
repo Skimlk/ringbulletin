@@ -15,6 +15,7 @@
 
 #include "fileutils.h"
 #include "stringutils.h"
+#include "context.h"
 
 int invalidFilename(const char *filename) {
 	if(strlen(filename) >= BASE_NAME_MAX) {
@@ -194,8 +195,43 @@ int writeJson(const cJSON *json, const char *directory, const char *path) {
 	return 0;
 }
 
-int compare(const void *a, const void *b) {
-	return strcmp(*(const char **)b, *(const char **)a);
+int getJsonHistoryItemNumber(Context *ctx, const char *categoryString, const char *itemString, const char *numberName, double *number) {
+	const cJSON *history = loadJson(ctx->config->boardGenerationDirectory, "history.json");
+	if (history == NULL) return 1;
+
+	const cJSON *categoryJson = cJSON_GetObjectItemCaseSensitive(history, categoryString);
+	if (categoryJson == NULL) return 1;
+	
+	const cJSON *itemJson = cJSON_GetObjectItemCaseSensitive(categoryJson, itemString);
+	if (itemJson == NULL) return 1;
+
+	const cJSON *numberJson = cJSON_GetObjectItemCaseSensitive(itemJson, numberName);
+	if(numberJson == NULL) return 1;
+
+	memcpy(number, &numberJson->valuedouble, sizeof(double));
+	return 0;
+}
+
+void updateJsonHistoryItemNumber(Context *ctx, const char *categoryString, const char *itemString, const char *numberName, const double number) {
+	const cJSON *history = loadJson(ctx->config->boardGenerationDirectory, "history.json");
+	if (history == NULL) history = cJSON_CreateObject();
+
+	const cJSON *categoryJson = cJSON_GetObjectItemCaseSensitive(history, categoryString);
+	if (categoryJson == NULL) {
+		categoryJson = cJSON_CreateObject();
+		cJSON_AddItemToObject(history, categoryString, categoryJson);
+	}
+
+	const cJSON *itemJson = cJSON_GetObjectItemCaseSensitive(categoryJson, itemString);
+	if (itemJson == NULL) {
+		itemJson = cJSON_CreateObject();
+		cJSON_AddItemToObject(categoryJson, itemString, itemJson);
+	}
+
+	cJSON_DeleteItemFromObjectCaseSensitive(itemJson, numberName);
+	cJSON_AddNumberToObject(itemJson, numberName, time(NULL));
+	
+	writeJson(history, ctx->config->boardGenerationDirectory, "history.json");
 }
 
 int processFiles(char *path, int (*process)(void *, struct dirent *, int), void *data) {
@@ -278,4 +314,8 @@ int alwaysTrue(void *unusedPattern, void *unusedSeed) {
 
 Files *getFiles(char *directory) {
 	return getFilesMatchingPattern(directory, alwaysTrue, NULL);
+}
+
+int compare(const void *a, const void *b) {
+	return strcmp(*(const char **)b, *(const char **)a);
 }
