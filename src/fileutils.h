@@ -32,10 +32,12 @@ extern int directoryExists(const char *directory);
 
 extern cJSON *loadJson(const char *directory, const char *path);
 extern int writeJson(const cJSON *json, const char *directory, const char *path);
-extern int getJsonHistoryItemNumber(Context *ctx, const char *categoryString, const char *itemString,
-    const char *numberName, double *number);
-extern void updateJsonHistoryItemNumber(Context *ctx, const char *categoryString, const char *itemString,
-    const char *numberName, const double number);
+extern int getJsonHistoryItemProperty(Context *ctx, const char *categoryString, const char *itemString,
+    const char *propertyName, void *property);
+CJSON_PUBLIC(cJSON*) addStringToJsonHistoryItem(const cJSON *itemJson, const char *stringName, void *string);
+CJSON_PUBLIC(cJSON*) addNumberToJsonHistoryItem(const cJSON *itemJson, const char *numberName, void *number);
+extern void updateJsonHistoryItemProperty(Context *ctx, const char *categoryString, const char *itemString,
+    const char *propertyName, void *property, CJSON_PUBLIC(cJSON*) (*addPropertyToItem)(const cJSON *, const char *, void *));
 
 extern int processFiles(char *path, int (*process)(void *, struct dirent *, int), void *data);
 extern int count(int *counter, struct dirent *unused, int count);

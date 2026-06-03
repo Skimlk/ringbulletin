@@ -42,10 +42,11 @@ void printError(char *msg) {
 int searchedAlready(Context *ctx, const char *categoryString, const char *itemString) {
 	double lastSearched;
 
-	if (getJsonHistoryItemNumber(ctx, categoryString, itemString, "lastSearched", &lastSearched) != 0
+	if (getJsonHistoryItemProperty(ctx, categoryString, itemString, "lastSearched", &lastSearched) != 0
 		|| lastSearched < ctx->searchStartTime
 	) {
-		updateJsonHistoryItemNumber(ctx, categoryString, itemString, "lastSearched", time(NULL));
+		double now = (double)time(NULL);
+		updateJsonHistoryItemProperty(ctx, categoryString, itemString, "lastSearched", &now, addNumberToJsonHistoryItem);
 		return 0;
 	}
 

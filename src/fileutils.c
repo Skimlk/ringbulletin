@@ -195,7 +195,7 @@ int writeJson(const cJSON *json, const char *directory, const char *path) {
 	return 0;
 }
 
-int getJsonHistoryItemNumber(Context *ctx, const char *categoryString, const char *itemString, const char *numberName, double *number) {
+int getJsonHistoryItemProperty(Context *ctx, const char *categoryString, const char *itemString, const char *propertyName, void *property) {
 	const cJSON *history = loadJson(ctx->config->boardGenerationDirectory, "history.json");
 	if (history == NULL) return 1;
 
@@ -205,14 +205,26 @@ int getJsonHistoryItemNumber(Context *ctx, const char *categoryString, const cha
 	const cJSON *itemJson = cJSON_GetObjectItemCaseSensitive(categoryJson, itemString);
 	if (itemJson == NULL) return 1;
 
-	const cJSON *numberJson = cJSON_GetObjectItemCaseSensitive(itemJson, numberName);
-	if(numberJson == NULL) return 1;
+	const cJSON *propertyJson = cJSON_GetObjectItemCaseSensitive(itemJson, propertyName);
+	if(propertyJson == NULL) return 1;
 
-	memcpy(number, &numberJson->valuedouble, sizeof(double));
+	if(cJSON_IsNumber(propertyJson))
+		memcpy(property, &propertyJson->valuedouble, sizeof(double));
+	else
+		memcpy(property, &propertyJson->valuestring, (strlen((const char *)&propertyJson->valuestring) + 1) * sizeof(char));
+	
 	return 0;
 }
 
-void updateJsonHistoryItemNumber(Context *ctx, const char *categoryString, const char *itemString, const char *numberName, const double number) {
+CJSON_PUBLIC(cJSON*) addStringToJsonHistoryItem(const cJSON *itemJson, const char *stringName, void *string) {
+	return cJSON_AddStringToObject(itemJson, string, (const char *)string);
+}
+
+CJSON_PUBLIC(cJSON*) addNumberToJsonHistoryItem(const cJSON *itemJson, const char *numberName, void *number) {
+	return cJSON_AddNumberToObject(itemJson, numberName, *(const double *)number);
+}
+
+void updateJsonHistoryItemProperty(Context *ctx, const char *categoryString, const char *itemString, const char *propertyName, void *property, CJSON_PUBLIC(cJSON*) (*addPropertyToItem)(const cJSON *, const char *, void *)) {
 	const cJSON *history = loadJson(ctx->config->boardGenerationDirectory, "history.json");
 	if (history == NULL) history = cJSON_CreateObject();
 
@@ -228,8 +240,8 @@ void updateJsonHistoryItemNumber(Context *ctx, const char *categoryString, const
 		cJSON_AddItemToObject(categoryJson, itemString, itemJson);
 	}
 
-	cJSON_DeleteItemFromObjectCaseSensitive(itemJson, numberName);
-	cJSON_AddNumberToObject(itemJson, numberName, time(NULL));
+	cJSON_DeleteItemFromObjectCaseSensitive(itemJson, propertyName);
+	addPropertyToItem(itemJson, propertyName, property);
 	
 	writeJson(history, ctx->config->boardGenerationDirectory, "history.json");
 }
