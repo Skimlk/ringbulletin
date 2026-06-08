@@ -60,17 +60,18 @@ char *normalize(char *string) {
 	);
 }
 
-char *extractTimeFromFilename(char *filename) {
-	char *time = malloc(sizeof(char) * 13);
+time_t extractTimeFromFilename(char *filename) {
+    struct tm timeStructHelper = {0};
+	char timeString[13];
 
 	int i = 0;
 	for(;filename[i] != '_'; i++) {
-		time[i] = filename[i];
+		timeString[i] = filename[i];
 	}
 
-	time[i] = '\0';
+	timeString[i] = '\0';
 
-	return time;
+    return (time_t)strtoll(timeString, NULL, 10);
 }
 
 char *createTimestampedFilename(char *filename, char *seperator) {

@@ -217,10 +217,10 @@ int getJsonHistoryItemProperty(Context *ctx, const char *categoryString, const c
 }
 
 CJSON_PUBLIC(cJSON*) addStringToJsonHistoryItem(const cJSON *itemJson, const char *stringName, void *string) {
-	return cJSON_AddStringToObject(itemJson, string, (const char *)string);
+	return cJSON_AddStringToObject(itemJson, stringName, (const char *)string);
 }
 
-CJSON_PUBLIC(cJSON*) addNumberToJsonHistoryItem(const cJSON *itemJson, const char *numberName, void *number) {
+CJSON_PUBLIC(cJSON*) addDoubleToJsonHistoryItem(const cJSON *itemJson, const char *numberName, void *number) {
 	return cJSON_AddNumberToObject(itemJson, numberName, *(const double *)number);
 }
 

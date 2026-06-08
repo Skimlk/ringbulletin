@@ -5,7 +5,7 @@ extern char *strlwr(char *string);
 extern char *removeReplyPrefix(char *string);
 extern char *strip(char *string);
 extern char *normalize(char *string);
-extern char *extractTimeFromFilename(char *filename);
+extern time_t extractTimeFromFilename(char *filename);
 extern char *createTimestampedFilename(char *filename, char *seperator);
 extern time_t getUnixTimestampFromTimeFormatString(char *timeFormatString);
 

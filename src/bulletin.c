@@ -4,7 +4,8 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <stdint.h>
-#include <dirent.h> 
+#include <dirent.h>
+#include <inttypes.h>
 
 #include <libxml/HTMLtree.h>
 #include <libxml/xpath.h>
@@ -17,13 +18,6 @@
 #include "xmlutils.h"
 
 int writePost(const PostData *post, Context *ctx) {
-    // Normalize and Hash Title
-    char normalizedTitle[strlen(post->title)+1];
-    strcpy(normalizedTitle, post->title);
-    normalize(normalizedTitle);
- 
-    XXH64_hash_t titleHash = XXH64(normalizedTitle, strlen(normalizedTitle), 0);
-
     htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
     xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
     xmlDocSetRootElement(doc, html);
@@ -41,7 +35,7 @@ int writePost(const PostData *post, Context *ctx) {
                     xmlNewProp(postLink, BAD_CAST "target", BAD_CAST "_blank");
                 
         xmlNodePtr postMeta = addElement(postElement, "div", NULL, NULL, "post-meta");
-			addElement(postMeta, "span", post->pubDate, NULL, "post-date");
+			addElement(postMeta, "span", post->pubDateFormattedString, NULL, "post-date");
 			xmlNewChild(postMeta, NULL, BAD_CAST "span", BAD_CAST " • ");
 			addElement(postMeta, "span", post->link, NULL, "post-url");
 
@@ -50,19 +44,14 @@ int writePost(const PostData *post, Context *ctx) {
     xmlNodePtr replies = addElement(body, "div", NULL, NULL, "replies");
    
     char postsDirectory[PATH_MAX];
-    snprintf(postsDirectory, sizeof(postsDirectory), "%s/posts/", ctx->config->boardGenerationDirectory);
-
-	char titleHashString[40];
-	snprintf(titleHashString, sizeof(titleHashString), "%lu", titleHash);
-
-    time_t pubDateUnixTimestamp = getUnixTimestampFromTimeFormatString(post->pubDate);
+    snprintf(postsDirectory, sizeof(postsDirectory), "%s/posts/", ctx->config->boardGenerationDirectory);	
 
     char filename[64];
 
-    Files *existingPostsWithHash = getFilesMatchingPattern("./static/posts", contains, titleHashString);
+    Files *existingPostsWithHash = getFilesMatchingPattern("./static/posts", contains, post->normalizedTitleHashString);
     printf("Number of files: %d", existingPostsWithHash->numberOfFiles);
     for(int i = 0; i < existingPostsWithHash->numberOfFiles; i++) {
-        char *existingPostWithHashTime = extractTimeFromFilename(existingPostsWithHash->filenames[i]);
+        time_t existingPostWithHashTime = extractTimeFromFilename(existingPostsWithHash->filenames[i]);
         
         //Add feed to history
         char *replyFile = readFile("./static/posts/", existingPostsWithHash->filenames[i]);
@@ -71,7 +60,7 @@ int writePost(const PostData *post, Context *ctx) {
         
         //If the existing post has a later date, add the existing post content
             //to this post and overwrite the existing post with this one
-        if(strcmp(post->pubDate, existingPostWithHashTime) < 0) {
+        if(post->pubDateUnix < existingPostWithHashTime) {
             xmlXPathObjectPtr innerPost = xmlXPathEvalExpression(
                 BAD_CAST "//*[@class='post']",
                 ctx
@@ -108,8 +97,8 @@ int writePost(const PostData *post, Context *ctx) {
             
             htmlDocDumpMemoryFormat(replyDoc, &buffer, &size, 0);
 
-            snprintf(filename, sizeof(filename), "%s_%016llu.html",
-                existingPostWithHashTime, (unsigned long long)titleHash);
+            snprintf(filename, sizeof(filename), "%lld_%016" PRIx64 ".html",
+                existingPostWithHashTime, post->normalizedTitleHash);
             
             writeFile((const char *)buffer, &size, "./static/posts/", filename);
                         
@@ -117,8 +106,8 @@ int writePost(const PostData *post, Context *ctx) {
         }
     }
 
-    snprintf(filename, sizeof(filename), "%ld_%016llu.html",
-        (long)pubDateUnixTimestamp, (unsigned long long)titleHash);
+    snprintf(filename, sizeof(filename), "%lld_%016" PRIx64 ".html",
+        post->pubDateUnix, post->normalizedTitleHash);
 
     xmlChar *postSerialized;
     int size = 0; 

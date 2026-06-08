@@ -9,17 +9,20 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <inttypes.h>
 
 #include <cjson/cJSON.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
+#include "xxhash.h"
 
 #include "fetch.h"
 #include "fileutils.h"
 #include "config.h"
 #include "bulletin.h"
 #include "context.h"
+#include "stringutils.h"
 
 #define PROGRAM_TITLE "ringbulletin"
 #define CONFIG_PATH "config.json"
@@ -46,7 +49,7 @@ int searchedAlready(Context *ctx, const char *categoryString, const char *itemSt
 		|| lastSearched < ctx->searchStartTime
 	) {
 		double now = (double)time(NULL);
-		updateJsonHistoryItemProperty(ctx, categoryString, itemString, "lastSearched", &now, addNumberToJsonHistoryItem);
+		updateJsonHistoryItemProperty(ctx, categoryString, itemString, "lastSearched", &now, addDoubleToJsonHistoryItem);
 		return 0;
 	}
 
@@ -55,6 +58,7 @@ int searchedAlready(Context *ctx, const char *categoryString, const char *itemSt
 
 void processFeed(char *feed, Context *ctx, char *url) {
 	PostData post;
+	PostData newestPost;
 	xmlDocPtr doc;
 	xmlNodePtr cur;
 
@@ -85,7 +89,7 @@ void processFeed(char *feed, Context *ctx, char *url) {
 	xmlXPathObjectPtr itemNodes = xmlXPathEvalExpression((const xmlChar *)"//item", context);
 	xmlNodePtr itemNode;		
 
-	for (int i=0; i < itemNodes->nodesetval->nodeNr; i++) { 
+	for (int i = 0; i < itemNodes->nodesetval->nodeNr; i++) { 
 		xmlNodePtr itemNode = itemNodes->nodesetval->nodeTab[i];
 		for (xmlNodePtr child = itemNode->children; child != NULL; child = child->next) {
 			xmlChar *element = xmlNodeListGetString(doc, child->children, 0);
@@ -101,8 +105,9 @@ void processFeed(char *feed, Context *ctx, char *url) {
 			}
 
 			else if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"pubDate") == 0) {
-				printf("pubDate: %s\n", element);
-				post.pubDate = strdup(element);
+				printf("pubDateFormattedString: %s\n", element);
+				post.pubDateFormattedString = strdup(element);
+				post.pubDateUnix = getUnixTimestampFromTimeFormatString(post.pubDateFormattedString);
 			}
 
 			else if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"description") == 0) {
@@ -113,7 +118,31 @@ void processFeed(char *feed, Context *ctx, char *url) {
 			xmlFree(element);
 		}
 
-		writePost(&post, ctx);
+		char normalizedTitle[strlen(post.title)+1];
+		strcpy(normalizedTitle, post.title);
+		normalize(normalizedTitle);
+	
+		post.normalizedTitleHash = XXH64(normalizedTitle, strlen(normalizedTitle), 0);
+		snprintf(post.normalizedTitleHashString, sizeof(post.normalizedTitleHashString)/sizeof(char), "%016" PRIX64, post.normalizedTitleHash);
+
+		if (i == 0) newestPost = post;
+
+		char lastSearchedPostTitleHash[17];
+		lastSearchedPostTitleHash[16] = '\0';
+		double lastSearchedPostDate;
+		if (
+			getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", &lastSearchedPostTitleHash) == 0
+			&& getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &lastSearchedPostDate) == 0
+			&& !(lastSearchedPostDate == post.pubDateUnix
+				&& strcmp((const char *)&lastSearchedPostTitleHash, post.normalizedTitleHashString) == 0)
+		) {
+			writePost(&post, ctx);
+		} else {
+			updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", newestPost.normalizedTitleHashString, addStringToJsonHistoryItem);
+			double pubDateUnixDoubleHelper = (double)newestPost.pubDateUnix;
+			updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &pubDateUnixDoubleHelper, addDoubleToJsonHistoryItem);
+			break;
+		}
 		//xmlFree(keyword);
 	}
 }
