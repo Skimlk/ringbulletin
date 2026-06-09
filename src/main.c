@@ -196,7 +196,23 @@ void searchBoard(cJSON *board, Context *ctx, int currentDepth) {
 int main(int argc, char **argv) {
 	cJSON *configJson;
 	cJSON *boardJson;
+	int reloadFlag = 0;
 	int ret = 0;
+
+	int opt;
+	while((opt = getopt(argc, argv, "rh")) != -1) {
+		switch(opt) {
+			case 'r':
+				reloadFlag = 1;
+				break;
+			case 'h':
+				printHelpText();
+				goto cleanup;
+			default:
+				ret = 1;
+				goto cleanup;
+		}
+	}
 
 	// Load Config
 	ConfigValues config;
@@ -212,8 +228,10 @@ int main(int argc, char **argv) {
 		goto cleanup;
 	}
 
-	//Remove existing board
-	if(directoryExists(config.boardGenerationDirectory)) {
+	//Remove generated files on reload
+	if(reloadFlag == 1 && directoryExists(config.boardGenerationDirectory)) {
+		removeFile(config.boardGenerationDirectory, "history.json");
+
 		char postsPath[PATH_MAX];
 		snprintf(postsPath, PATH_MAX, "%s/posts/", config.boardGenerationDirectory);
 		processFiles(postsPath, (void *)removeCallback, postsPath);
