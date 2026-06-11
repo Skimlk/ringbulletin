@@ -123,7 +123,7 @@ void processFeed(char *feed, Context *ctx, char *url) {
 		normalize(normalizedTitle);
 	
 		post.normalizedTitleHash = XXH64(normalizedTitle, strlen(normalizedTitle), 0);
-		snprintf(post.normalizedTitleHashString, sizeof(post.normalizedTitleHashString)/sizeof(char), "%016" PRIX64, post.normalizedTitleHash);
+		snprintf(post.normalizedTitleHashString, sizeof(post.normalizedTitleHashString)/sizeof(char), "%016" PRIx64, post.normalizedTitleHash);
 
 		if (i == 0) newestPost = post;
 
