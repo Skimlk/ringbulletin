@@ -131,10 +131,9 @@ void processFeed(char *feed, Context *ctx, char *url) {
 		lastSearchedPostTitleHash[16] = '\0';
 		double lastSearchedPostDate;
 		if (
-			getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", &lastSearchedPostTitleHash) == 0
-			&& getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &lastSearchedPostDate) == 0
-			&& !(lastSearchedPostDate == post.pubDateUnix
-				&& strcmp((const char *)&lastSearchedPostTitleHash, post.normalizedTitleHashString) == 0)
+			getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", &lastSearchedPostTitleHash) != 0
+			|| getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &lastSearchedPostDate) != 0
+			|| !(lastSearchedPostDate == post.pubDateUnix && strcmp((const char *)&lastSearchedPostTitleHash, post.normalizedTitleHashString) == 0)
 		) {
 			writePost(&post, ctx);
 		} else {
