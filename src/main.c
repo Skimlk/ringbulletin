@@ -215,8 +215,9 @@ int main(int argc, char **argv) {
 		return 1;
 
 	Context ctx = { &config, time(NULL), NULL };
-	int postDirectoryPathLen = strlen(ctx.config->boardGenerationDirectory) + strlen("/posts/") + 1;
-    snprintf(ctx.postsDirectory, postDirectoryPathLen, "%s/posts/", ctx.config->boardGenerationDirectory);	
+	int postsDirectoryPathLen = strlen(ctx.config->boardGenerationDirectory) + strlen("/posts/") + 1;
+	ctx.postsDirectory = malloc(postsDirectoryPathLen * sizeof(char));
+    snprintf(ctx.postsDirectory, postsDirectoryPathLen, "%s/posts/", ctx.config->boardGenerationDirectory);	
 	
 	// Load board file
 	boardJson = loadJson(NULL, config.boardJsonPath);
@@ -240,5 +241,6 @@ int main(int argc, char **argv) {
 	writeBulletin(&ctx);
 
 cleanup:
+	free(ctx.postsDirectory);
 	return ret;
 }
