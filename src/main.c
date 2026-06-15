@@ -125,22 +125,22 @@ void processFeed(char *feed, Context *ctx, char *url) {
 
 		if (i == 0) newestPost = post;
 
-		char lastSearchedPostTitleHash[17];
-		lastSearchedPostTitleHash[16] = '\0';
+		char *lastSearchedPostTitleHash;
 		double lastSearchedPostDate;
 		if (
 			getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", &lastSearchedPostTitleHash) != 0
 			|| getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &lastSearchedPostDate) != 0
-			|| !(lastSearchedPostDate == post.pubDateUnix && strcmp((const char *)&lastSearchedPostTitleHash, post.normalizedTitleHashString) == 0)
+			|| !(lastSearchedPostDate == post.pubDateUnix && strcmp((const char *)lastSearchedPostTitleHash, post.normalizedTitleHashString) == 0)
 		) {
 			writePost(&post, ctx);
-		} else {
-			updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", newestPost.normalizedTitleHashString, addStringToJsonHistoryItem);
-			double pubDateUnixDoubleHelper = (double)newestPost.pubDateUnix;
-			updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &pubDateUnixDoubleHelper, addDoubleToJsonHistoryItem);
+		} else {	
 			break;
 		}
 	}
+	
+	updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", newestPost.normalizedTitleHashString, addStringToJsonHistoryItem);
+	double pubDateUnixDoubleHelper = (double)newestPost.pubDateUnix;
+	updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &pubDateUnixDoubleHelper, addDoubleToJsonHistoryItem);
 }
 
 void searchBoard(cJSON *board, Context *ctx, int currentDepth) {

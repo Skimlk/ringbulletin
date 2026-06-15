@@ -217,7 +217,7 @@ int getJsonHistoryItemProperty(Context *ctx, const char *categoryString, const c
 	if(cJSON_IsNumber(propertyJson))
 		memcpy(property, &propertyJson->valuedouble, sizeof(double));
 	else
-		memcpy(property, &propertyJson->valuestring, (strlen((const char *)&propertyJson->valuestring) + 1) * sizeof(char));
+		*(char **)property = strdup(propertyJson->valuestring);
 	
 	return 0;
 }
