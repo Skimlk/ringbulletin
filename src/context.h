@@ -9,6 +9,7 @@
 typedef struct Context {
 	ConfigValues *config;
 	time_t searchStartTime;
+	char *postsDirectory;
 } Context;
 
 #endif

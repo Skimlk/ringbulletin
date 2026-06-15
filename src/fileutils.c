@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <stdint.h>
-#include <dirent.h> 
+#include <dirent.h>
 
 #include <libxml/HTMLtree.h>
 #include <cjson/cJSON.h>
@@ -16,6 +16,8 @@
 #include "fileutils.h"
 #include "stringutils.h"
 #include "context.h"
+
+#define UNUSED(x) (void)(x)
 
 int invalidFilename(const char *filename) {
 	if(strlen(filename) >= BASE_NAME_MAX) {
@@ -72,7 +74,7 @@ char *readFile(const char *directory, const char *filename) {
 
 int writeFile(const char *content, const int *size, const char *directory, const char *filename) {
 	if(!content) {
-		fprintf(stderr, "Content is null or empty.\n", filename);
+		fprintf(stderr, "Content is null or empty.\n");
 		return 1;
 	}
 
@@ -86,11 +88,13 @@ int writeFile(const char *content, const int *size, const char *directory, const
 		directory = "";
 	}
 
-	char path[PATH_MAX];
-	snprintf(path, PATH_MAX, "%s%s", directory, filename);
+	int pathSize = strlen(directory) + strlen(filename) + 1;
+	char path[pathSize];
+	snprintf(path, pathSize, "%s%s", directory, filename);
 
-	char tempPath[PATH_MAX];
-	snprintf(tempPath, PATH_MAX, "%s%s", path, TEMP_NAME_EXT);
+	int tempPathSize = pathSize + strlen(TEMP_NAME_EXT);
+	char tempPath[tempPathSize];
+	snprintf(tempPath, tempPathSize, "%s%s", path, TEMP_NAME_EXT);
 
 	FILE *fptr = fopen(tempPath, "w");
 
@@ -157,6 +161,8 @@ int directoryExists(const char *directoryPath) {
 		closedir(directory);
 		return 1;
 	}
+
+	return 0;
 }
 
 cJSON *loadJson(const char *directory, const char *path) {
@@ -199,13 +205,13 @@ int getJsonHistoryItemProperty(Context *ctx, const char *categoryString, const c
 	const cJSON *history = loadJson(ctx->config->boardGenerationDirectory, "history.json");
 	if (history == NULL) return 1;
 
-	const cJSON *categoryJson = cJSON_GetObjectItemCaseSensitive(history, categoryString);
+	cJSON * const categoryJson = cJSON_GetObjectItemCaseSensitive(history, categoryString);
 	if (categoryJson == NULL) return 1;
 	
-	const cJSON *itemJson = cJSON_GetObjectItemCaseSensitive(categoryJson, itemString);
+	cJSON * const itemJson = cJSON_GetObjectItemCaseSensitive(categoryJson, itemString);
 	if (itemJson == NULL) return 1;
 
-	const cJSON *propertyJson = cJSON_GetObjectItemCaseSensitive(itemJson, propertyName);
+	cJSON * const propertyJson = cJSON_GetObjectItemCaseSensitive(itemJson, propertyName);
 	if(propertyJson == NULL) return 1;
 
 	if(cJSON_IsNumber(propertyJson))
@@ -216,25 +222,25 @@ int getJsonHistoryItemProperty(Context *ctx, const char *categoryString, const c
 	return 0;
 }
 
-CJSON_PUBLIC(cJSON*) addStringToJsonHistoryItem(const cJSON *itemJson, const char *stringName, void *string) {
-	return cJSON_AddStringToObject(itemJson, stringName, (const char *)string);
+CJSON_PUBLIC(cJSON*) addStringToJsonHistoryItem(cJSON *itemJson, const char *stringName, void *string) {
+	return cJSON_AddStringToObject((cJSON * const)itemJson, stringName, (const char *)string);
 }
 
-CJSON_PUBLIC(cJSON*) addDoubleToJsonHistoryItem(const cJSON *itemJson, const char *numberName, void *number) {
-	return cJSON_AddNumberToObject(itemJson, numberName, *(const double *)number);
+CJSON_PUBLIC(cJSON*) addDoubleToJsonHistoryItem(cJSON *itemJson, const char *numberName, void *number) {
+	return cJSON_AddNumberToObject((cJSON * const)itemJson, numberName, *(const double *)number);
 }
 
-void updateJsonHistoryItemProperty(Context *ctx, const char *categoryString, const char *itemString, const char *propertyName, void *property, CJSON_PUBLIC(cJSON*) (*addPropertyToItem)(const cJSON *, const char *, void *)) {
-	const cJSON *history = loadJson(ctx->config->boardGenerationDirectory, "history.json");
+void updateJsonHistoryItemProperty(Context *ctx, const char *categoryString, const char *itemString, const char *propertyName, void *property, CJSON_PUBLIC(cJSON*) (*addPropertyToItem)(cJSON *, const char *, void *)) {
+	cJSON *history = loadJson(ctx->config->boardGenerationDirectory, "history.json");
 	if (history == NULL) history = cJSON_CreateObject();
 
-	const cJSON *categoryJson = cJSON_GetObjectItemCaseSensitive(history, categoryString);
+	cJSON *categoryJson = cJSON_GetObjectItemCaseSensitive(history, categoryString);
 	if (categoryJson == NULL) {
 		categoryJson = cJSON_CreateObject();
 		cJSON_AddItemToObject(history, categoryString, categoryJson);
 	}
 
-	const cJSON *itemJson = cJSON_GetObjectItemCaseSensitive(categoryJson, itemString);
+	cJSON *itemJson = cJSON_GetObjectItemCaseSensitive(categoryJson, itemString);
 	if (itemJson == NULL) {
 		itemJson = cJSON_CreateObject();
 		cJSON_AddItemToObject(categoryJson, itemString, itemJson);
@@ -263,12 +269,14 @@ int processFiles(char *path, int (*process)(void *, struct dirent *, int), void 
 	return 0;
 }
 
-int count(int *counter, struct dirent *unused, int count) {
+int count(int *counter, struct dirent *unusedDirent, int count) {
+	UNUSED(unusedDirent);
 	*counter = count + 1;
 	return 0;
 }
 
 int removeCallback(char *directory, struct dirent *file, int count) {
+	UNUSED(count);
 	removeFile(directory, file->d_name);
 	return 0;
 }
@@ -321,6 +329,8 @@ int contains(void *string, void *substring) {
 }
 
 int alwaysTrue(void *unusedPattern, void *unusedSeed) {
+	UNUSED(unusedPattern);
+	UNUSED(unusedSeed);
 	return 1;
 }
 

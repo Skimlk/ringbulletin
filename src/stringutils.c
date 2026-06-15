@@ -28,7 +28,7 @@ char *removeReplyPrefix(char *string) {
 
 	int indexOfOriginalTitle = (replyPrefixLocation - string) + replyPrefixLength;
 
-	int stringLength = strlen(string);
+	size_t stringLength = strlen(string);
 	size_t i;
 	for(i = indexOfOriginalTitle; i < stringLength; i++) {
 		string[i - indexOfOriginalTitle] = string[i];
@@ -61,7 +61,6 @@ char *normalize(char *string) {
 }
 
 time_t extractTimeFromFilename(char *filename) {
-    struct tm timeStructHelper = {0};
 	char timeString[13];
 
 	int i = 0;

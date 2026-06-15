@@ -48,7 +48,7 @@ int searchedAlready(Context *ctx, const char *categoryString, const char *itemSt
 	if (getJsonHistoryItemProperty(ctx, categoryString, itemString, "lastSearched", &lastSearched) != 0
 		|| lastSearched < ctx->searchStartTime
 	) {
-		double now = (double)time(NULL);
+		double now = (double)ctx->searchStartTime;
 		updateJsonHistoryItemProperty(ctx, categoryString, itemString, "lastSearched", &now, addDoubleToJsonHistoryItem);
 		return 0;
 	}
@@ -84,10 +84,8 @@ void processFeed(char *feed, Context *ctx, char *url) {
 	}
 
 	// Iterate Through Posts (Testing)
-	xmlChar *keyword;
 	xmlXPathContextPtr context = xmlXPathNewContext(doc);
 	xmlXPathObjectPtr itemNodes = xmlXPathEvalExpression((const xmlChar *)"//item", context);
-	xmlNodePtr itemNode;		
 
 	for (int i = 0; i < itemNodes->nodesetval->nodeNr; i++) { 
 		xmlNodePtr itemNode = itemNodes->nodesetval->nodeTab[i];
@@ -96,23 +94,23 @@ void processFeed(char *feed, Context *ctx, char *url) {
 			
 			if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"title") == 0) {
 				printf("Title: %s\n", element);
-				post.title = strdup(element);
+				post.title = strdup((char *)element);
 			}
 
 			else if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"link") == 0) {
 				printf("Link: %s\n", element);
-				post.link = strdup(element);
+				post.link = strdup((char *)element);
 			}
 
 			else if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"pubDate") == 0) {
 				printf("pubDateFormattedString: %s\n", element);
-				post.pubDateFormattedString = strdup(element);
+				post.pubDateFormattedString = strdup((char *)element);
 				post.pubDateUnix = getUnixTimestampFromTimeFormatString(post.pubDateFormattedString);
 			}
 
 			else if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"description") == 0) {
 				printf("description: %s\n", element);
-				post.description = strdup(element);
+				post.description = strdup((char *)element);
 			}
 
 			xmlFree(element);
@@ -142,7 +140,6 @@ void processFeed(char *feed, Context *ctx, char *url) {
 			updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &pubDateUnixDoubleHelper, addDoubleToJsonHistoryItem);
 			break;
 		}
-		//xmlFree(keyword);
 	}
 }
 
@@ -193,7 +190,6 @@ void searchBoard(cJSON *board, Context *ctx, int currentDepth) {
 }
 
 int main(int argc, char **argv) {
-	cJSON *configJson;
 	cJSON *boardJson;
 	int reloadFlag = 0;
 	int ret = 0;
@@ -218,6 +214,10 @@ int main(int argc, char **argv) {
 	if(loadConfig(CONFIG_PATH, &config))
 		return 1;
 
+	Context ctx = { &config, time(NULL), NULL };
+	int postDirectoryPathLen = strlen(ctx.config->boardGenerationDirectory) + strlen("/posts/") + 1;
+    snprintf(ctx.postsDirectory, postDirectoryPathLen, "%s/posts/", ctx.config->boardGenerationDirectory);	
+	
 	// Load board file
 	boardJson = loadJson(NULL, config.boardJsonPath);
 
@@ -230,14 +230,10 @@ int main(int argc, char **argv) {
 	//Remove generated files on reload
 	if(reloadFlag == 1 && directoryExists(config.boardGenerationDirectory)) {
 		removeFile(config.boardGenerationDirectory, "history.json");
-
-		char postsPath[PATH_MAX];
-		snprintf(postsPath, PATH_MAX, "%s/posts/", config.boardGenerationDirectory);
-		processFiles(postsPath, (void *)removeCallback, postsPath);
+		processFiles(ctx.postsDirectory, (void *)removeCallback, ctx.postsDirectory);
 	}
 
 	// Search Boards and Feeds
-	Context ctx = { &config, time(NULL) };
 	searchedAlready(&ctx, "boards", config.boardJsonUrl);
 	searchBoard(boardJson, &ctx, 0);
 

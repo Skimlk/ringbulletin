@@ -2,6 +2,7 @@
 #define FILEUTILS_H
 
 #include <limits.h>
+#include <dirent.h>
 #include <cjson/cJSON.h>
 
 typedef struct Context Context;
@@ -34,10 +35,10 @@ extern cJSON *loadJson(const char *directory, const char *path);
 extern int writeJson(const cJSON *json, const char *directory, const char *path);
 extern int getJsonHistoryItemProperty(Context *ctx, const char *categoryString, const char *itemString,
     const char *propertyName, void *property);
-CJSON_PUBLIC(cJSON*) addStringToJsonHistoryItem(const cJSON *itemJson, const char *stringName, void *string);
-CJSON_PUBLIC(cJSON*) addDoubleToJsonHistoryItem(const cJSON *itemJson, const char *numberName, void *number);
+CJSON_PUBLIC(cJSON*) addStringToJsonHistoryItem(cJSON *itemJson, const char *stringName, void *string);
+CJSON_PUBLIC(cJSON*) addDoubleToJsonHistoryItem(cJSON *itemJson, const char *numberName, void *number);
 extern void updateJsonHistoryItemProperty(Context *ctx, const char *categoryString, const char *itemString,
-    const char *propertyName, void *property, CJSON_PUBLIC(cJSON*) (*addPropertyToItem)(const cJSON *, const char *, void *));
+    const char *propertyName, void *property, CJSON_PUBLIC(cJSON*) (*addPropertyToItem)(cJSON *, const char *, void *));
 
 extern int processFiles(char *path, int (*process)(void *, struct dirent *, int), void *data);
 extern int count(int *counter, struct dirent *unused, int count);

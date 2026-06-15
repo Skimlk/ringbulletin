@@ -10,7 +10,7 @@ struct memory {
 
 static size_t writeMemory(char *contents, size_t size, size_t nmemb, void *userp) {
 	struct memory *mem = userp;
-	char *ptr = realloc(mem->memory, mem->size + nmemb + 1);	
+	char *ptr = realloc(mem->memory, mem->size + size * nmemb + 1);	
 	if(!ptr) {
 		printf("not enough memory (realloc returned NULL)\n");
 		return 0;

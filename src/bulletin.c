@@ -30,8 +30,8 @@ int writePost(const PostData *post, Context *ctx) {
     xmlNodePtr postElement = addElement(body, "div", NULL, NULL, "post");
 		xmlNodePtr postHeader = addElement(postElement, "div", NULL, NULL, "post-header");
             xmlNodePtr postTitle = addElement(postHeader, "div", NULL, NULL, "post-title"); 
-                xmlNodePtr postLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", post->title);
-                    xmlNewProp(postLink, BAD_CAST "href", post->link);
+                xmlNodePtr postLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST post->title);
+                    xmlNewProp(postLink, BAD_CAST "href", BAD_CAST post->link);
                     xmlNewProp(postLink, BAD_CAST "target", BAD_CAST "_blank");
                 
         xmlNodePtr postMeta = addElement(postElement, "div", NULL, NULL, "post-meta");
@@ -39,16 +39,13 @@ int writePost(const PostData *post, Context *ctx) {
 			xmlNewChild(postMeta, NULL, BAD_CAST "span", BAD_CAST " • ");
 			addElement(postMeta, "span", post->link, NULL, "post-url");
 
-        xmlNodePtr description = addElement(postElement, "div", post->description, NULL, "post-description");
+        addElement(postElement, "div", post->description, NULL, "post-description");
 
     xmlNodePtr replies = addElement(body, "div", NULL, NULL, "replies");
    
-    char postsDirectory[PATH_MAX];
-    snprintf(postsDirectory, sizeof(postsDirectory), "%s/posts/", ctx->config->boardGenerationDirectory);	
-
     char filename[64];
 
-    Files *existingPostsWithHash = getFilesMatchingPattern("./static/posts", contains, post->normalizedTitleHashString);
+    Files *existingPostsWithHash = getFilesMatchingPattern("./static/posts", contains, (void *)post->normalizedTitleHashString);
     printf("Number of files: %d", existingPostsWithHash->numberOfFiles);
     for(int i = 0; i < existingPostsWithHash->numberOfFiles; i++) {
         time_t existingPostWithHashTime = extractTimeFromFilename(existingPostsWithHash->filenames[i]);
@@ -98,7 +95,7 @@ int writePost(const PostData *post, Context *ctx) {
             htmlDocDumpMemoryFormat(replyDoc, &buffer, &size, 0);
 
             snprintf(filename, sizeof(filename), "%lld_%016" PRIx64 ".html",
-                existingPostWithHashTime, post->normalizedTitleHash);
+                (long long)existingPostWithHashTime, post->normalizedTitleHash);
             
             writeFile((const char *)buffer, &size, "./static/posts/", filename);
                         
@@ -107,7 +104,7 @@ int writePost(const PostData *post, Context *ctx) {
     }
 
     snprintf(filename, sizeof(filename), "%lld_%016" PRIx64 ".html",
-        post->pubDateUnix, post->normalizedTitleHash);
+        (long long)post->pubDateUnix, post->normalizedTitleHash);
 
     xmlChar *postSerialized;
     int size = 0; 
@@ -119,12 +116,12 @@ int writePost(const PostData *post, Context *ctx) {
         return 1;
     }
 
-    writeFile((const char *)postSerialized, &size, postsDirectory, filename);
+    writeFile((const char *)postSerialized, &size, ctx->postsDirectory, filename);
 
     return 0;
 }
 
-int writeList() {
+void writeList() {
     Files *posts = getFiles("./static/posts");
     qsort(posts->filenames, posts->numberOfFiles, sizeof(char *), compare);
    
@@ -189,7 +186,7 @@ int writeList() {
         printf("Post was not serialized\n");
     }   
 
-    writeFile((const char *)postSerialized, &size, "./static/", BAD_CAST "./list.html");
+    writeFile((const char *)postSerialized, &size, "./static/", "./list.html");
 }
 
 int writeBulletin(Context *ctx) {
@@ -209,7 +206,7 @@ int writeBulletin(Context *ctx) {
 			xmlNodePtr rightNavbarSection = addElement(navbar, "div", NULL, "nav-right", NULL);
                 xmlNodePtr aboutDropdown = addDropdownButton(rightNavbarSection, "./assets/svg/help-info-solid.svg");
                 xmlNodeAddContent(aboutDropdown, BAD_CAST "About ");
-                xmlNodePtr githubLink = xmlNewChild(aboutDropdown, NULL, BAD_CAST "a", "GitHub");
+                xmlNodePtr githubLink = xmlNewChild(aboutDropdown, NULL, BAD_CAST "a", BAD_CAST "GitHub");
                     xmlNewProp(githubLink, BAD_CAST "href", BAD_CAST "https://github.com/Skimlk/ringbulletin");
                     xmlNewProp(githubLink, BAD_CAST "target", BAD_CAST "_blank");
 
@@ -217,12 +214,12 @@ int writeBulletin(Context *ctx) {
                 xmlNodeAddContent(copyDropdown, BAD_CAST "Board URL:");
                 xmlNodePtr boardUrl = xmlNewChild(copyDropdown, NULL, BAD_CAST "input", NULL);
                     xmlNewProp(boardUrl, BAD_CAST "type", BAD_CAST "text");
-                    xmlNewProp(boardUrl, BAD_CAST "value", ctx->config->boardJsonUrl);
+                    xmlNewProp(boardUrl, BAD_CAST "value", BAD_CAST ctx->config->boardJsonUrl);
         
         char *listTimestampedFilename = createTimestampedFilename("./list.html", "?");
         writeList();
         xmlNodePtr listIFrame = addElement(body, "iframe", NULL, "content-iframe", NULL);
-            xmlNewProp(listIFrame, BAD_CAST "src", listTimestampedFilename);
+            xmlNewProp(listIFrame, BAD_CAST "src", BAD_CAST listTimestampedFilename);
             xmlNewProp(listIFrame, BAD_CAST "name", BAD_CAST "content-iframe");
         free(listTimestampedFilename);
 
