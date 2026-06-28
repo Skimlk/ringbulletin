@@ -202,24 +202,39 @@ int writeJson(const cJSON *json, const char *directory, const char *path) {
 }
 
 int getJsonHistoryItemProperty(Context *ctx, const char *categoryString, const char *itemString, const char *propertyName, void *property) {
+	int ret = 0;
 	const cJSON *history = loadJson(ctx->config->boardGenerationDirectory, "history.json");
-	if (history == NULL) return 1;
+	if (history == NULL) {
+		ret = 1;
+		goto cleanup;
+	};
 
 	cJSON * const categoryJson = cJSON_GetObjectItemCaseSensitive(history, categoryString);
-	if (categoryJson == NULL) return 1;
+	if (categoryJson == NULL) {
+		ret = 1;
+		goto cleanup;
+	};
 	
 	cJSON * const itemJson = cJSON_GetObjectItemCaseSensitive(categoryJson, itemString);
-	if (itemJson == NULL) return 1;
+	if (itemJson == NULL) {
+		ret = 1;
+		goto cleanup;
+	}
 
 	cJSON * const propertyJson = cJSON_GetObjectItemCaseSensitive(itemJson, propertyName);
-	if(propertyJson == NULL) return 1;
+	if(propertyJson == NULL) {
+		ret = 1;
+		goto cleanup;
+	};
 
 	if(cJSON_IsNumber(propertyJson))
 		memcpy(property, &propertyJson->valuedouble, sizeof(double));
 	else
 		*(char **)property = strdup(propertyJson->valuestring);
-	
-	return 0;
+
+cleanup:
+	cJSON_Delete((cJSON *)history);
+	return ret;
 }
 
 CJSON_PUBLIC(cJSON*) addStringToJsonHistoryItem(cJSON *itemJson, const char *stringName, void *string) {
@@ -250,6 +265,7 @@ void updateJsonHistoryItemProperty(Context *ctx, const char *categoryString, con
 	addPropertyToItem(itemJson, propertyName, property);
 	
 	writeJson(history, ctx->config->boardGenerationDirectory, "history.json");
+	cJSON_Delete(history);
 }
 
 int processFiles(char *path, int (*process)(void *, struct dirent *, int), void *data) {
@@ -295,8 +311,19 @@ int filenameMatchesPattern(Pattern *pattern, struct dirent *file, int count) {
 	return 1;
 }
 
-Files *getFilesMatchingPattern(char *directory, int (*pattern)(void *, void *), void *seed) {
-	Files *files = malloc(sizeof(Files));
+void freeFilenameList(FilenameList *filenameList) {
+    if(filenameList == NULL)
+        return;
+
+    for(size_t i = 0; i < (size_t)filenameList->numberOfFiles; i++)
+        free(filenameList->filenames[i]);
+
+    free(filenameList->filenames);
+    free(filenameList);
+}
+
+FilenameList *getFilenameListMatchingPattern(char *directory, int (*pattern)(void *, void *), void *seed) {
+	FilenameList *files = malloc(sizeof(FilenameList));
 	files->numberOfFiles = 0;
 	
 	Pattern countIfMatching = {
@@ -315,7 +342,6 @@ Files *getFilesMatchingPattern(char *directory, int (*pattern)(void *, void *), 
 		files->filenames,
 		seed
 	};
-
     processFiles(directory, (void *)filenameMatchesPattern, &populateFilenamesArrayIfMatching);
 
     return files;
@@ -334,8 +360,8 @@ int alwaysTrue(void *unusedPattern, void *unusedSeed) {
 	return 1;
 }
 
-Files *getFiles(char *directory) {
-	return getFilesMatchingPattern(directory, alwaysTrue, NULL);
+FilenameList *getFilenameList(char *directory) {
+	return getFilenameListMatchingPattern(directory, alwaysTrue, NULL);
 }
 
 int compare(const void *a, const void *b) {

@@ -97,7 +97,7 @@ time_t getUnixTimestampFromTimeFormatString(char *timeFormatString) {
 
     for(long unsigned int i = 0; i < sizeof(timeFormats) / sizeof(char *); i++) {
         if(strptime(timeFormatString, timeFormats[i], &timeStructHelper) != NULL)
-            return mktime(&timeStructHelper); 
+			return mktime(&timeStructHelper);
     }
 
     fprintf(stderr, "Failed to parse date-time.\n");

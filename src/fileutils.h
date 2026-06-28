@@ -15,7 +15,7 @@ typedef struct Context Context;
 typedef struct {
     int numberOfFiles;
 	char **filenames;
-} Files;
+} FilenameList;
 
 typedef struct {
     int (*matched)(void *data, void *seed);
@@ -44,8 +44,9 @@ extern int processFiles(char *path, int (*process)(void *, struct dirent *, int)
 extern int count(int *counter, struct dirent *unused, int count);
 extern int populateFilenamesArray(char **filenames, struct dirent *file, int count);
 extern int removeCallback(char *directory, struct dirent *file, int count);
-extern Files *getFilesMatchingPattern(char *directory, int (*pattern)(void *, void *), void *seed);
-extern Files *getFiles(char *directory);
+extern void freeFilenameList(FilenameList *filenameList);
+extern FilenameList *getFilenameListMatchingPattern(char *directory, int (*pattern)(void *, void *), void *seed);
+extern FilenameList *getFilenameList(char *directory);
 extern int contains(void *, void *);
 extern int compare(const void *a, const void *b);
 

@@ -34,5 +34,7 @@ xmlNodePtr addDropdownButton(xmlNodePtr parent, char *iconPath) {
    
         xmlNodePtr dropdownMenu = addElement(details, "div", NULL, NULL, "dropdown-menu");
 
+    xmlFreeDoc(iconDoc);
+    free(icon);
     return dropdownMenu;
 }

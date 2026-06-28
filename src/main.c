@@ -56,91 +56,148 @@ int searchedAlready(Context *ctx, const char *categoryString, const char *itemSt
 	return 1;
 }
 
-void processFeed(char *feed, Context *ctx, char *url) {
-	PostData post;
-	PostData newestPost;
-	xmlDocPtr doc;
-	xmlNodePtr cur;
+int feedIsValid(xmlDocPtr doc) {
+	xmlNodePtr root = xmlDocGetRootElement(doc);
 
-	// Setup Feed
-	doc = xmlReadMemory(feed, strlen(feed), NULL, NULL, 0);	
-	if (!doc) {
-		fprintf(stderr, "Document not parsed successfully.\n");
-		return;
+	if (root == NULL) {
+		fprintf(stderr, "Document is empty\n");
+		return 0;
+	}
+
+	if (xmlStrcmp(root->name, BAD_CAST "rss")) {
+		fprintf(stderr, "Document is of the wrong type, the root node is not rss\n");
+		return 0;	
+	}
+
+	return 1;
+}
+
+int postAlreadyWritten(PostData *post, char *url, Context *ctx) {
+	int ret = 1;
+	char *lastSearchedPostTitleHash = NULL;
+	double lastSearchedPostDate;
+	
+	if (getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", &lastSearchedPostTitleHash) != 0) {
+		ret = 0;
+		goto cleanup;
+	}
+
+	if (getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &lastSearchedPostDate) != 0) {
+		ret = 0;
+		goto cleanup;
 	}
 	
-	cur = xmlDocGetRootElement(doc);
+	int datesMatch = (lastSearchedPostDate == post->pubDateUnix) ? 1 : 0;
+	int normalizedTitleHashesMatch
+		= (strcmp((const char *)lastSearchedPostTitleHash, post->normalizedTitleHashString) == 0) ? 1 : 0;
+	
+	if (!(datesMatch && normalizedTitleHashesMatch))
+		ret = 0;
 
-	if (cur == NULL) {
-		fprintf(stderr,"empty document\n");
-		xmlFreeDoc(doc);
-		return;
+cleanup:
+	free(lastSearchedPostTitleHash);
+	return ret;
+}
+
+int hydratePostContent(xmlDocPtr doc, xmlNodePtr postNode, PostData *post) {
+	int ret = 0;
+	xmlChar *element = NULL;
+
+	if (postNode == NULL || postNode->type != XML_ELEMENT_NODE) {
+		ret = 1;
+		goto cleanup;
+	}
+	
+	element = xmlNodeListGetString(doc, postNode->children, 0);
+	if (element == NULL) {
+		ret = 1;
+		goto cleanup;
 	}
 
-	if (xmlStrcmp(cur->name, (const xmlChar *) "rss")) {
-		fprintf(stderr,"document of the wrong type, root node != rss\n");
-		xmlFreeDoc(doc);
-		return;
+	if (xmlStrcmp(postNode->name, BAD_CAST "title") == 0) {
+		printf("Title: %s\n", element);
+		post->title = strdup((char *)element);
+	}
+
+	else if (xmlStrcmp(postNode->name, BAD_CAST "link") == 0) {
+		printf("Link: %s\n", element);
+		post->link = strdup((char *)element);
+	}
+
+	else if (xmlStrcmp(postNode->name, BAD_CAST "pubDate") == 0) {
+		printf("pubDateFormattedString: %s\n", element);
+		post->pubDateFormattedString = strdup((char *)element);
+		post->pubDateUnix = getUnixTimestampFromTimeFormatString(post->pubDateFormattedString);
+	}
+
+	else if (xmlStrcmp(postNode->name, BAD_CAST "description") == 0) {
+		printf("description: %s\n", element);
+		post->description = strdup((char *)element);
+	}
+
+cleanup:
+	xmlFree(element);
+	return ret;
+}
+
+int processFeed(char *feed, Context *ctx, char *url) {
+	int ret = 0;
+	xmlDocPtr doc = xmlReadMemory(feed, strlen(feed), NULL, NULL, 0);
+	PostData *latestPost;
+	xmlXPathContextPtr docXPathContext = NULL;
+	xmlXPathObjectPtr itemNodes = NULL;
+
+	if (!doc) {
+		fprintf(stderr, "Document not parsed successfully.\n");
+		ret = 0;
+		goto cleanup;
+	}
+
+	if (!feedIsValid(doc)) {
+		ret = 0;
+		goto cleanup;
 	}
 
 	// Iterate Through Posts (Testing)
-	xmlXPathContextPtr context = xmlXPathNewContext(doc);
-	xmlXPathObjectPtr itemNodes = xmlXPathEvalExpression((const xmlChar *)"//item", context);
+	docXPathContext = xmlXPathNewContext(doc);
+	itemNodes = xmlXPathEvalExpression(BAD_CAST "//item", docXPathContext);
 
-	for (int i = 0; i < itemNodes->nodesetval->nodeNr; i++) { 
+	for (int i = 0; i < itemNodes->nodesetval->nodeNr; i++) {
+		PostData *post = initalizePost();
 		xmlNodePtr itemNode = itemNodes->nodesetval->nodeTab[i];
-		for (xmlNodePtr child = itemNode->children; child != NULL; child = child->next) {
-			xmlChar *element = xmlNodeListGetString(doc, child->children, 0);
-			
-			if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"title") == 0) {
-				printf("Title: %s\n", element);
-				post.title = strdup((char *)element);
-			}
-
-			else if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"link") == 0) {
-				printf("Link: %s\n", element);
-				post.link = strdup((char *)element);
-			}
-
-			else if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"pubDate") == 0) {
-				printf("pubDateFormattedString: %s\n", element);
-				post.pubDateFormattedString = strdup((char *)element);
-				post.pubDateUnix = getUnixTimestampFromTimeFormatString(post.pubDateFormattedString);
-			}
-
-			else if (child->type == XML_ELEMENT_NODE && xmlStrcmp(child->name, (const xmlChar *)"description") == 0) {
-				printf("description: %s\n", element);
-				post.description = strdup((char *)element);
-			}
-
-			xmlFree(element);
-		}
-
-		char normalizedTitle[strlen(post.title)+1];
-		strcpy(normalizedTitle, post.title);
+		for (xmlNodePtr child = itemNode->children; child != NULL; child = child->next)
+			hydratePostContent(doc, child, post);
+		char normalizedTitle[strlen(post->title)+1];
+		strcpy(normalizedTitle, post->title);
 		normalize(normalizedTitle);
 	
-		post.normalizedTitleHash = XXH64(normalizedTitle, strlen(normalizedTitle), 0);
-		snprintf(post.normalizedTitleHashString, sizeof(post.normalizedTitleHashString)/sizeof(char), "%016" PRIx64, post.normalizedTitleHash);
+		post->normalizedTitleHash = XXH64(normalizedTitle, strlen(normalizedTitle), 0);
+		int hashMaxLength = 17;
+		post->normalizedTitleHashString = malloc(sizeof(char) * hashMaxLength);
+		snprintf(post->normalizedTitleHashString, hashMaxLength, "%016" PRIx64, post->normalizedTitleHash);
 
-		if (i == 0) newestPost = post;
-
-		char *lastSearchedPostTitleHash;
-		double lastSearchedPostDate;
-		if (
-			getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", &lastSearchedPostTitleHash) != 0
-			|| getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &lastSearchedPostDate) != 0
-			|| !(lastSearchedPostDate == post.pubDateUnix && strcmp((const char *)lastSearchedPostTitleHash, post.normalizedTitleHashString) == 0)
-		) {
-			writePost(&post, ctx);
-		} else {	
+		if (i == 0) latestPost = copyPostData(post);
+	
+		if (!postAlreadyWritten(post, url, ctx)) {
+			writePost(post, ctx);
+			freePostData(post);
+		}
+		else {
+			freePostData(post);
 			break;
 		}
 	}
-	
-	updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", newestPost.normalizedTitleHashString, addStringToJsonHistoryItem);
-	double pubDateUnixDoubleHelper = (double)newestPost.pubDateUnix;
+
+	updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", latestPost->normalizedTitleHashString, addStringToJsonHistoryItem);
+	double pubDateUnixDoubleHelper = (double)latestPost->pubDateUnix;
 	updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &pubDateUnixDoubleHelper, addDoubleToJsonHistoryItem);
+
+cleanup:
+	xmlFreeDoc(doc);
+	xmlXPathFreeContext(docXPathContext);
+	xmlXPathFreeObject(itemNodes);
+	freePostData(latestPost);
+	return ret;
 }
 
 void searchBoard(cJSON *board, Context *ctx, int currentDepth) {
@@ -178,15 +235,13 @@ void searchBoard(cJSON *board, Context *ctx, int currentDepth) {
 				free(peerBoard);
 				if(peerBoardJson) {
 					searchBoard(peerBoardJson, ctx, currentDepth+1);
+					cJSON_Delete(peerBoardJson);
 				} else {
 					printf("Couldn't fetch board at '%s'.\n", peer->valuestring);
 				}
 			}
 		}
-		
 	}
-
-	cJSON_Delete(board);
 }
 
 int main(int argc, char **argv) {
@@ -215,9 +270,9 @@ int main(int argc, char **argv) {
 		return 1;
 
 	Context ctx = { &config, time(NULL), NULL };
-	int postsDirectoryPathLen = strlen(ctx.config->boardGenerationDirectory) + strlen("/posts/") + 1;
-	ctx.postsDirectory = malloc(postsDirectoryPathLen * sizeof(char));
-    snprintf(ctx.postsDirectory, postsDirectoryPathLen, "%s/posts/", ctx.config->boardGenerationDirectory);	
+	int postsDirectoryPathStrLen = strlen(ctx.config->boardGenerationDirectory) + strlen("/posts/") + 1;
+	ctx.postsDirectory = malloc(postsDirectoryPathStrLen * sizeof(char));
+    snprintf(ctx.postsDirectory, postsDirectoryPathStrLen, "%s/posts/", ctx.config->boardGenerationDirectory);	
 	
 	// Load board file
 	boardJson = loadJson(NULL, config.boardJsonPath);
@@ -242,5 +297,6 @@ int main(int argc, char **argv) {
 
 cleanup:
 	free(ctx.postsDirectory);
+	cJSON_Delete(boardJson);
 	return ret;
 }

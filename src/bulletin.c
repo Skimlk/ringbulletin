@@ -17,9 +17,46 @@
 #include "context.h"
 #include "xmlutils.h"
 
+PostData *initalizePost() {
+    PostData *post = malloc(sizeof(PostData));
+   
+    post->title = NULL;
+    post->link = NULL;
+    post->description = NULL;
+    post->normalizedTitleHashString = NULL;
+    post->pubDateFormattedString = NULL;
+    
+    return post;
+}
+
+PostData *copyPostData(PostData *originalPost) {
+    PostData *newPost = malloc(sizeof(PostData));
+
+    newPost->title = strdup(originalPost->title);
+    newPost->link = strdup(originalPost->link);
+	newPost->description = strdup(originalPost->description);
+	newPost->normalizedTitleHash = originalPost->normalizedTitleHash;
+	newPost->normalizedTitleHashString = strdup(originalPost->normalizedTitleHashString);
+	newPost->pubDateUnix = originalPost->pubDateUnix;
+	newPost->pubDateFormattedString = strdup(originalPost->pubDateFormattedString);
+
+    return newPost;
+}
+
+void freePostData(PostData *post) {
+    free(post->title);
+    free(post->link);
+    free(post->description);
+    free(post->normalizedTitleHashString);
+    free(post->pubDateFormattedString);
+    free(post);
+}
+
 int writePost(const PostData *post, Context *ctx) {
+    int ret = 0;
     htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
     xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
+    char *replyFile;
     xmlDocSetRootElement(doc, html);
 
 	xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
@@ -43,24 +80,23 @@ int writePost(const PostData *post, Context *ctx) {
 
     xmlNodePtr replies = addElement(body, "div", NULL, NULL, "replies");
    
-    char filename[64];
+    char filename[PATH_MAX];
+    FilenameList *existingPostsWithHash = getFilenameListMatchingPattern("./static/posts", contains, (void *)post->normalizedTitleHashString);
+    if(existingPostsWithHash->numberOfFiles > 0) {
+        char *existingPostWithHash = existingPostsWithHash->filenames[0];
+        time_t existingPostWithHashTime = extractTimeFromFilename(existingPostWithHash);
 
-    Files *existingPostsWithHash = getFilesMatchingPattern("./static/posts", contains, (void *)post->normalizedTitleHashString);
-    printf("Number of files: %d", existingPostsWithHash->numberOfFiles);
-    for(int i = 0; i < existingPostsWithHash->numberOfFiles; i++) {
-        time_t existingPostWithHashTime = extractTimeFromFilename(existingPostsWithHash->filenames[i]);
-        
         //Add feed to history
-        char *replyFile = readFile("./static/posts/", existingPostsWithHash->filenames[i]);
+        replyFile = readFile("./static/posts/", existingPostWithHash);
         htmlDocPtr replyDoc = htmlReadMemory(replyFile, strlen(replyFile), NULL, "UTF-8", 0);
-        xmlXPathContextPtr ctx = xmlXPathNewContext(replyDoc); 
+        xmlXPathContextPtr replyDocXPathCtx = xmlXPathNewContext(replyDoc); 
         
         //If the existing post has a later date, add the existing post content
             //to this post and overwrite the existing post with this one
         if(post->pubDateUnix < existingPostWithHashTime) {
             xmlXPathObjectPtr innerPost = xmlXPathEvalExpression(
                 BAD_CAST "//*[@class='post']",
-                ctx
+                replyDocXPathCtx 
             );
 
             xmlNodePtr sameHashPost = innerPost->nodesetval->nodeTab[0];
@@ -71,15 +107,12 @@ int writePost(const PostData *post, Context *ctx) {
 
             xmlAddChild(replies, imported);
 
-            removeFile("./static/posts/", existingPostsWithHash->filenames[i]);
+            removeFile("./static/posts/", existingPostWithHash);
         }
         //If the existing post has an earlier date, add this post's content
             //to the existing post
         else {
-            xmlXPathObjectPtr matchingHashReplies = xmlXPathEvalExpression(
-                BAD_CAST "//*[@class='replies']",
-                ctx
-            );
+            xmlXPathObjectPtr matchingHashReplies = xmlXPathEvalExpression(BAD_CAST "//*[@class='replies']", replyDocXPathCtx);
 
             xmlNodePtr repliesNode = matchingHashReplies->nodesetval->nodeTab[0];
 
@@ -98,31 +131,80 @@ int writePost(const PostData *post, Context *ctx) {
                 (long long)existingPostWithHashTime, post->normalizedTitleHash);
             
             writeFile((const char *)buffer, &size, "./static/posts/", filename);
-                        
-            return 0;
+
+            ret = 0;
+            goto cleanup;
         }
     }
 
     snprintf(filename, sizeof(filename), "%lld_%016" PRIx64 ".html",
-        (long long)post->pubDateUnix, post->normalizedTitleHash);
+        (long long) post->pubDateUnix, post->normalizedTitleHash);
 
     xmlChar *postSerialized;
-    int size = 0; 
+    int size = 0;
     
     htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 0);
 
     if(!postSerialized) {
         printf("Post was not serialized\n");
-        return 1;
+        ret = 1;
+        goto cleanup;
     }
 
     writeFile((const char *)postSerialized, &size, ctx->postsDirectory, filename);
 
-    return 0;
+cleanup:
+    xmlFree(postSerialized);
+    free(replyFile);
+    freeFilenameList(existingPostsWithHash);
+    xmlFreeDoc(doc);
+    return ret;
 }
 
-void writeList() {
-    Files *posts = getFiles("./static/posts");
+void writeListItem(Context *ctx, xmlNodePtr list, char *postFilename) {
+    size_t strlenPath = strlen(ctx->postsDirectory) + strlen(postFilename) + 1;
+    char *itemFullPath = malloc(sizeof(char) * strlenPath);
+    snprintf(itemFullPath, strlenPath,
+        "%s%s", ctx->postsDirectory, postFilename);
+
+    char *itemFileContents = readFile(NULL, itemFullPath);
+    htmlDocPtr itemFileDocPtr = htmlReadMemory(itemFileContents, strlen(itemFileContents), NULL, "UTF-8", 0);
+    xmlXPathContextPtr itemXPathContextPtr = xmlXPathNewContext(itemFileDocPtr);
+
+    xmlXPathObjectPtr postInner = xmlXPathEvalExpression(BAD_CAST "//div[contains(@class,'post')]", itemXPathContextPtr);
+
+    xmlNodePtr copyPostInner = xmlDocCopyNode(postInner->nodesetval->nodeTab[0], list->doc, 1);
+        xmlNewChild(copyPostInner->children->children, NULL, BAD_CAST "span", BAD_CAST " • ");
+        xmlNodePtr viewThreadLink = xmlNewChild(copyPostInner->children->children, NULL, BAD_CAST "a", BAD_CAST "View Thread");
+                xmlNewProp(viewThreadLink, BAD_CAST "href", BAD_CAST itemFullPath);
+                xmlNewProp(viewThreadLink, BAD_CAST "target", BAD_CAST "content-iframe");
+    
+    xmlAddChild(list, copyPostInner);
+    
+    xmlXPathObjectPtr previewReplies = xmlXPathEvalExpression(BAD_CAST "//div[contains(@class,'replies')]/*", itemXPathContextPtr);
+
+    if (previewReplies && previewReplies->nodesetval) {
+        int previewPostCount = 3;
+        int previewStartIndex = (previewReplies->nodesetval->nodeNr - previewPostCount < 0) ? 0
+            : previewReplies->nodesetval->nodeNr - previewPostCount;
+
+        for (int i = previewStartIndex; i < previewReplies->nodesetval->nodeNr; i++) {
+            xmlNodePtr copy = xmlDocCopyNode(previewReplies->nodesetval->nodeTab[i], list->doc, 1);
+            xmlAddChild(list, copy);
+        }
+    }
+
+    xmlXPathFreeObject(postInner);
+    xmlXPathFreeObject(previewReplies);
+    xmlXPathFreeContext(itemXPathContextPtr);
+    xmlFreeDoc(itemFileDocPtr);
+    free(itemFileContents);
+    free(itemFullPath);
+}
+
+int writeList(Context *ctx) {
+    int ret = 0;
+    FilenameList *posts = getFilenameList("./static/posts");
     qsort(posts->filenames, posts->numberOfFiles, sizeof(char *), compare);
    
     htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
@@ -135,48 +217,7 @@ void writeList() {
 
     xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
     xmlNodePtr list = addElement(body, "div", NULL, "board", NULL);
-        char fullpath[256];
-        for(int i = 0; i < posts->numberOfFiles; i++) {
-            sprintf(fullpath, "./posts/%s", posts->filenames[i]);
-
-            char *fileContents = readFile("./static/posts/", posts->filenames[i]);
-            htmlDocPtr fileDocPtr = htmlReadMemory(fileContents, strlen(fileContents), NULL, "UTF-8", 0);
-            xmlXPathContextPtr ctx = xmlXPathNewContext(fileDocPtr);
-
-            xmlXPathObjectPtr postInner = xmlXPathEvalExpression(
-                (const xmlChar *)"//div[contains(@class,'post')]",
-                ctx
-            );
-
-            xmlNodePtr copyPostInner = xmlDocCopyNode(postInner->nodesetval->nodeTab[0], list->doc, 1);
-                xmlNewChild(copyPostInner->children->children, NULL, BAD_CAST "span", BAD_CAST " • ");
-                xmlNodePtr viewThreadLink = xmlNewChild(copyPostInner->children->children, NULL, BAD_CAST "a", BAD_CAST "View Thread");
-                        xmlNewProp(viewThreadLink, BAD_CAST "href", BAD_CAST fullpath);
-                        xmlNewProp(viewThreadLink, BAD_CAST "target", BAD_CAST "content-iframe");
-            
-            xmlAddChild(list, copyPostInner);
-            
-            xmlXPathObjectPtr previewReplies = xmlXPathEvalExpression(
-                (const xmlChar *)
-                "//div[contains(@class,'replies')]/*",
-                ctx
-            );
-
-            if (previewReplies && previewReplies->nodesetval) {
-                int previewPostCount = 3;
-                int previewStartIndex = (previewReplies->nodesetval->nodeNr - previewPostCount < 0) ? 0
-                    : previewReplies->nodesetval->nodeNr - previewPostCount;
-
-                for (int i = previewStartIndex; i < previewReplies->nodesetval->nodeNr; i++) {
-                    xmlNodePtr copy = xmlDocCopyNode(previewReplies->nodesetval->nodeTab[i], list->doc, 1);
-                    xmlAddChild(list, copy);
-                }
-            }
-
-            xmlXPathFreeObject(previewReplies);
-
-            free(posts->filenames[i]);
-        }
+        for(int i = 0; i < posts->numberOfFiles; i++) { writeListItem(ctx, list, posts->filenames[i]); }
     
     xmlChar *postSerialized;
     int size = 0;
@@ -184,9 +225,17 @@ void writeList() {
 
     if(!postSerialized) {
         printf("Post was not serialized\n");
+        ret = 1;
+        goto cleanup;
     }   
 
     writeFile((const char *)postSerialized, &size, "./static/", "./list.html");
+
+cleanup:
+    xmlFree(postSerialized);
+    freeFilenameList(posts);
+    xmlFreeDoc(doc);
+    return ret;
 }
 
 int writeBulletin(Context *ctx) {
@@ -217,7 +266,7 @@ int writeBulletin(Context *ctx) {
                     xmlNewProp(boardUrl, BAD_CAST "value", BAD_CAST ctx->config->boardJsonUrl);
         
         char *listTimestampedFilename = createTimestampedFilename("./list.html", "?");
-        writeList();
+        writeList(ctx);
         xmlNodePtr listIFrame = addElement(body, "iframe", NULL, "content-iframe", NULL);
             xmlNewProp(listIFrame, BAD_CAST "src", BAD_CAST listTimestampedFilename);
             xmlNewProp(listIFrame, BAD_CAST "name", BAD_CAST "content-iframe");
@@ -234,6 +283,8 @@ int writeBulletin(Context *ctx) {
     writeFile((const char *)postSerialized, &size, "./static/", "board.html");
     copyFile("./assets/css/", "theme.css", "./static/", "theme.css"); 
     copyFile("./assets/css/", "board.css", "./static/", "board.css"); 
-    
+
+    xmlFreeDoc(doc);
+    xmlFree(postSerialized);
 	return 0;   
 }
