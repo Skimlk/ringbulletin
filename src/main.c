@@ -143,24 +143,29 @@ cleanup:
 int processFeed(char *feed, Context *ctx, char *url) {
 	int ret = 0;
 	xmlDocPtr doc = xmlReadMemory(feed, strlen(feed), NULL, NULL, 0);
-	PostData *latestPost;
+	PostData *latestPost = initalizePost();
 	xmlXPathContextPtr docXPathContext = NULL;
 	xmlXPathObjectPtr itemNodes = NULL;
 
 	if (!doc) {
 		fprintf(stderr, "Document not parsed successfully.\n");
-		ret = 0;
+		ret = 1;
 		goto cleanup;
 	}
 
 	if (!feedIsValid(doc)) {
-		ret = 0;
+		ret = 1;
 		goto cleanup;
 	}
 
 	// Iterate Through Posts (Testing)
 	docXPathContext = xmlXPathNewContext(doc);
 	itemNodes = xmlXPathEvalExpression(BAD_CAST "//item", docXPathContext);
+
+	if (itemNodes == NULL || itemNodes->nodesetval == NULL) {
+		ret = 1;
+		goto cleanup;
+	}
 
 	for (int i = 0; i < itemNodes->nodesetval->nodeNr; i++) {
 		PostData *post = initalizePost();
@@ -176,7 +181,7 @@ int processFeed(char *feed, Context *ctx, char *url) {
 		post->normalizedTitleHashString = malloc(sizeof(char) * hashMaxLength);
 		snprintf(post->normalizedTitleHashString, hashMaxLength, "%016" PRIx64, post->normalizedTitleHash);
 
-		if (i == 0) latestPost = copyPostData(post);
+		if (i == 0) copyPostData(latestPost, post);
 	
 		if (!postAlreadyWritten(post, url, ctx)) {
 			writePost(post, ctx);

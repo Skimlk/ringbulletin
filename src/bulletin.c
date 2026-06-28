@@ -29,9 +29,7 @@ PostData *initalizePost() {
     return post;
 }
 
-PostData *copyPostData(PostData *originalPost) {
-    PostData *newPost = malloc(sizeof(PostData));
-
+void copyPostData(PostData *newPost, PostData *originalPost) {
     newPost->title = strdup(originalPost->title);
     newPost->link = strdup(originalPost->link);
 	newPost->description = strdup(originalPost->description);
@@ -39,8 +37,6 @@ PostData *copyPostData(PostData *originalPost) {
 	newPost->normalizedTitleHashString = strdup(originalPost->normalizedTitleHashString);
 	newPost->pubDateUnix = originalPost->pubDateUnix;
 	newPost->pubDateFormattedString = strdup(originalPost->pubDateFormattedString);
-
-    return newPost;
 }
 
 void freePostData(PostData *post) {

@@ -17,7 +17,7 @@ typedef struct {
 } PostData;
 
 extern PostData *initalizePost();
-extern PostData *copyPostData(PostData *originalPost);
+extern void copyPostData(PostData *newPost, PostData *originalPost);
 extern void freePostData(PostData *post);
 extern int writeBulletin();
 extern int writePost(const PostData *post, Context *ctx);
