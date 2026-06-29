@@ -274,10 +274,10 @@ int main(int argc, char **argv) {
 	if(loadConfig(CONFIG_PATH, &config))
 		return 1;
 
-	Context ctx = { &config, time(NULL), NULL };
-	int postsDirectoryPathStrLen = strlen(ctx.config->boardGenerationDirectory) + strlen("/posts/") + 1;
-	ctx.postsDirectory = malloc(postsDirectoryPathStrLen * sizeof(char));
-    snprintf(ctx.postsDirectory, postsDirectoryPathStrLen, "%s/posts/", ctx.config->boardGenerationDirectory);	
+	Context ctx = { &config, time(NULL), NULL, NULL };
+	ctx.postsDirectoryRelativePath = "posts/";
+	asprintf(&ctx.postsDirectoryFullPath, "%s/%s",
+		config.boardGenerationDirectory, ctx.postsDirectoryRelativePath);
 	
 	// Load board file
 	boardJson = loadJson(NULL, config.boardJsonPath);
@@ -291,7 +291,7 @@ int main(int argc, char **argv) {
 	//Remove generated files on reload
 	if(reloadFlag == 1 && directoryExists(config.boardGenerationDirectory)) {
 		removeFile(config.boardGenerationDirectory, "history.json");
-		processFiles(ctx.postsDirectory, (void *)removeCallback, ctx.postsDirectory);
+		processFiles(ctx.postsDirectoryFullPath, (void *)removeCallback, ctx.postsDirectoryFullPath);
 	}
 
 	// Search Boards and Feeds
@@ -301,7 +301,7 @@ int main(int argc, char **argv) {
 	writeBulletin(&ctx);
 
 cleanup:
-	free(ctx.postsDirectory);
+	free(ctx.postsDirectoryFullPath);
 	cJSON_Delete(boardJson);
 	return ret;
 }

@@ -147,7 +147,7 @@ int writePost(const PostData *post, Context *ctx) {
         goto cleanup;
     }
 
-    writeFile((const char *)postSerialized, &size, ctx->postsDirectory, filename);
+    writeFile((const char *)postSerialized, &size, ctx->postsDirectoryFullPath, filename);
 
 cleanup:
     xmlFree(postSerialized);
@@ -158,10 +158,10 @@ cleanup:
 }
 
 void writeListItem(Context *ctx, xmlNodePtr list, char *postFilename) {
-    size_t strlenPath = strlen(ctx->postsDirectory) + strlen(postFilename) + 1;
-    char *itemFullPath = malloc(sizeof(char) * strlenPath);
-    snprintf(itemFullPath, strlenPath,
-        "%s%s", ctx->postsDirectory, postFilename);
+    char *itemFullPath = NULL;
+    char *itemRelativePath = NULL;
+    asprintf(&itemFullPath, "%s/%s", ctx->postsDirectoryFullPath, postFilename);
+    asprintf(&itemRelativePath, "%s/%s", ctx->postsDirectoryRelativePath, postFilename);
 
     char *itemFileContents = readFile(NULL, itemFullPath);
     htmlDocPtr itemFileDocPtr = htmlReadMemory(itemFileContents, strlen(itemFileContents), NULL, "UTF-8", 0);
@@ -172,7 +172,7 @@ void writeListItem(Context *ctx, xmlNodePtr list, char *postFilename) {
     xmlNodePtr copyPostInner = xmlDocCopyNode(postInner->nodesetval->nodeTab[0], list->doc, 1);
         xmlNewChild(copyPostInner->children->children, NULL, BAD_CAST "span", BAD_CAST " • ");
         xmlNodePtr viewThreadLink = xmlNewChild(copyPostInner->children->children, NULL, BAD_CAST "a", BAD_CAST "View Thread");
-                xmlNewProp(viewThreadLink, BAD_CAST "href", BAD_CAST itemFullPath);
+                xmlNewProp(viewThreadLink, BAD_CAST "href", BAD_CAST itemRelativePath);
                 xmlNewProp(viewThreadLink, BAD_CAST "target", BAD_CAST "content-iframe");
     
     xmlAddChild(list, copyPostInner);
@@ -195,6 +195,7 @@ void writeListItem(Context *ctx, xmlNodePtr list, char *postFilename) {
     xmlXPathFreeContext(itemXPathContextPtr);
     xmlFreeDoc(itemFileDocPtr);
     free(itemFileContents);
+    free(itemRelativePath);
     free(itemFullPath);
 }
 
