@@ -101,7 +101,7 @@ cleanup:
 
 void processPost(PostData *post, Context *ctx) {
     FilenameList *existingPostsWithHash 
-        = getFilenameListMatchingPattern("./static/posts", contains, (void *)post->normalizedTitleHashString);
+        = getFilenameListMatchingPattern(ctx->postsDirectoryFullPath, contains, (void *)post->normalizedTitleHashString);
     char *existingPostWithHashContent = NULL;
     htmlDocPtr existingPostWithHashDoc = NULL;
     htmlDocPtr newPostDoc = NULL;
@@ -111,7 +111,7 @@ void processPost(PostData *post, Context *ctx) {
     if(hasExistingPost) {
         existingPostWithHashTime = extractTimeFromFilename(existingPostsWithHash->filenames[0]);
 
-        existingPostWithHashContent = readFile("./static/posts/", existingPostsWithHash->filenames[0]);
+        existingPostWithHashContent = readFile(ctx->postsDirectoryFullPath, existingPostsWithHash->filenames[0]);
         existingPostWithHashDoc = htmlReadMemory(existingPostWithHashContent, 
             strlen(existingPostWithHashContent), NULL, "UTF-8", 0);
     }
@@ -135,7 +135,7 @@ void processPost(PostData *post, Context *ctx) {
             copyXPathFilteredRepliesToNode(existingPostWithHashDoc, "//*[@class='post']", replies);
             copyXPathFilteredRepliesToNode(existingPostWithHashDoc, "//*[@class='replies']/*", replies);
 
-            removeFile("./static/posts/", existingPostsWithHash->filenames[0]);
+            removeFile(ctx->postsDirectoryFullPath, existingPostsWithHash->filenames[0]);
         }
 
         writePost(ctx->postsDirectoryFullPath, newPostDoc, post->pubDateUnix, post->normalizedTitleHash);
