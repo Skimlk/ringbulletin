@@ -20,6 +20,6 @@ extern PostData *initalizePost();
 extern void copyPostData(PostData *newPost, PostData *originalPost);
 extern void freePostData(PostData *post);
 extern int writeBulletin();
-extern int writePost(const PostData *post, Context *ctx);
+extern void processPost(PostData *post, Context *ctx);
 
 #endif

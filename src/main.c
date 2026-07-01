@@ -184,7 +184,7 @@ int processFeed(char *feed, Context *ctx, char *url) {
 		if (i == 0) copyPostData(latestPost, post);
 	
 		if (!postAlreadyWritten(post, url, ctx)) {
-			writePost(post, ctx);
+			processPost(post, ctx);
 			freePostData(post);
 		}
 		else {
@@ -198,9 +198,9 @@ int processFeed(char *feed, Context *ctx, char *url) {
 	updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &pubDateUnixDoubleHelper, addDoubleToJsonHistoryItem);
 
 cleanup:
-	xmlFreeDoc(doc);
-	xmlXPathFreeContext(docXPathContext);
 	xmlXPathFreeObject(itemNodes);
+	xmlXPathFreeContext(docXPathContext);
+	xmlFreeDoc(doc);
 	freePostData(latestPost);
 	return ret;
 }

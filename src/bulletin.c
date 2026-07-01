@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <dirent.h>
 #include <inttypes.h>
+#include <stdbool.h>
 
 #include <libxml/HTMLtree.h>
 #include <libxml/xpath.h>
@@ -48,113 +49,109 @@ void freePostData(PostData *post) {
     free(post);
 }
 
-int writePost(const PostData *post, Context *ctx) {
-    int ret = 0;
-    htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
-    xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
-    char *replyFile;
-    xmlDocSetRootElement(doc, html);
-
-	xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
-		addStyle(head, "../theme.css");
-		addStyle(head, "../board.css");
-
-    xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
-    xmlNodePtr postElement = addElement(body, "div", NULL, NULL, "post");
-		xmlNodePtr postHeader = addElement(postElement, "div", NULL, NULL, "post-header");
-            xmlNodePtr postTitle = addElement(postHeader, "div", NULL, NULL, "post-title"); 
-                xmlNodePtr postLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST post->title);
-                    xmlNewProp(postLink, BAD_CAST "href", BAD_CAST post->link);
-                    xmlNewProp(postLink, BAD_CAST "target", BAD_CAST "_blank");
-                
-        xmlNodePtr postMeta = addElement(postElement, "div", NULL, NULL, "post-meta");
-			addElement(postMeta, "span", post->pubDateFormattedString, NULL, "post-date");
-			xmlNewChild(postMeta, NULL, BAD_CAST "span", BAD_CAST " • ");
-			addElement(postMeta, "span", post->link, NULL, "post-url");
-
-        addElement(postElement, "div", post->description, NULL, "post-description");
-
-    xmlNodePtr replies = addElement(body, "div", NULL, NULL, "replies");
-   
-    char filename[PATH_MAX];
-    FilenameList *existingPostsWithHash = getFilenameListMatchingPattern("./static/posts", contains, (void *)post->normalizedTitleHashString);
-    if(existingPostsWithHash->numberOfFiles > 0) {
-        char *existingPostWithHash = existingPostsWithHash->filenames[0];
-        time_t existingPostWithHashTime = extractTimeFromFilename(existingPostWithHash);
-
-        //Add feed to history
-        replyFile = readFile("./static/posts/", existingPostWithHash);
-        htmlDocPtr replyDoc = htmlReadMemory(replyFile, strlen(replyFile), NULL, "UTF-8", 0);
-        xmlXPathContextPtr replyDocXPathCtx = xmlXPathNewContext(replyDoc); 
+void copyXPathFilteredRepliesToNode(htmlDocPtr htmlToFilter, char *xPathString, xmlNodePtr dest) {
+    xmlXPathContextPtr xmlXPathHtmlToFilter = xmlXPathNewContext(htmlToFilter); 
+    xmlXPathObjectPtr filteredHtml = xmlXPathEvalExpression(BAD_CAST xPathString, xmlXPathHtmlToFilter);
+    for(int i = 0; i < filteredHtml->nodesetval->nodeNr; i++) {
+        xmlNodePtr filterResult = filteredHtml->nodesetval->nodeTab[i];
         
-        //If the existing post has a later date, add the existing post content
-            //to this post and overwrite the existing post with this one
-        if(post->pubDateUnix < existingPostWithHashTime) {
-            xmlXPathObjectPtr innerPost = xmlXPathEvalExpression(
-                BAD_CAST "//*[@class='post']",
-                replyDocXPathCtx 
-            );
+        xmlUnsetProp(filterResult, BAD_CAST "class");
+        xmlNewProp(filterResult, BAD_CAST "class", BAD_CAST "reply");
 
-            xmlNodePtr sameHashPost = innerPost->nodesetval->nodeTab[0];
-            xmlUnsetProp(sameHashPost, BAD_CAST "class");
-            xmlNewProp(sameHashPost, BAD_CAST "class", BAD_CAST "reply");
-
-            xmlNodePtr imported = xmlDocCopyNode(sameHashPost, replies->doc, 1);
-
-            xmlAddChild(replies, imported);
-
-            removeFile("./static/posts/", existingPostWithHash);
-        }
-        //If the existing post has an earlier date, add this post's content
-            //to the existing post
-        else {
-            xmlXPathObjectPtr matchingHashReplies = xmlXPathEvalExpression(BAD_CAST "//*[@class='replies']", replyDocXPathCtx);
-
-            xmlNodePtr repliesNode = matchingHashReplies->nodesetval->nodeTab[0];
-
-            xmlUnsetProp(postElement, BAD_CAST "class");
-            xmlNewProp(postElement, BAD_CAST "class", BAD_CAST "reply");
-
-            xmlNodePtr imported = xmlDocCopyNode(postElement, replyDoc, 1);
-            xmlAddChild(repliesNode, imported);
-
-            xmlChar *buffer = NULL;
-            int size = 0;
-            
-            htmlDocDumpMemoryFormat(replyDoc, &buffer, &size, 0);
-
-            snprintf(filename, sizeof(filename), "%lld_%016" PRIx64 ".html",
-                (long long)existingPostWithHashTime, post->normalizedTitleHash);
-            
-            writeFile((const char *)buffer, &size, "./static/posts/", filename);
-
-            ret = 0;
-            goto cleanup;
-        }
+        xmlNodePtr filterResultCopied = xmlDocCopyNode(filterResult, dest->doc, 1);
+        xmlAddChild(dest, filterResultCopied);
     }
 
-    snprintf(filename, sizeof(filename), "%lld_%016" PRIx64 ".html",
-        (long long) post->pubDateUnix, post->normalizedTitleHash);
+    xmlXPathFreeObject(filteredHtml);
+    xmlXPathFreeContext(xmlXPathHtmlToFilter);
+}
 
-    xmlChar *postSerialized;
-    int size = 0;
+void addPostToReplies(htmlDocPtr destDoc, PostData *post) {
+    xmlXPathContextPtr destDocContext = xmlXPathNewContext(destDoc);
+    xmlXPathObjectPtr repliesFilter = xmlXPathEvalExpression(BAD_CAST "//*[@class='replies']", destDocContext);
+    createPostElement(repliesFilter->nodesetval->nodeTab[0], post);
+
+    xmlXPathFreeObject(repliesFilter);
+    xmlXPathFreeContext(destDocContext);
+}
+
+int writePost(char *directory, htmlDocPtr postDoc, time_t postTimestamp, XXH64_hash_t postHash) {
+    int ret = 0;
+    xmlChar *postCharBuffer = NULL;
     
-    htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 0);
+    char filename[PATH_MAX];
+    snprintf(filename, sizeof(filename), "%lld_%016" PRIx64 ".html",
+        (long long) postTimestamp, postHash);
 
-    if(!postSerialized) {
+    int size = 0;
+    htmlDocDumpMemoryFormat(postDoc, &postCharBuffer, &size, 0);
+
+    if(!postCharBuffer) {
         printf("Post was not serialized\n");
         ret = 1;
         goto cleanup;
     }
 
-    writeFile((const char *)postSerialized, &size, ctx->postsDirectoryFullPath, filename);
+    writeFile((const char *)postCharBuffer, &size, directory, filename);
 
 cleanup:
-    xmlFree(postSerialized);
-    free(replyFile);
-    freeFilenameList(existingPostsWithHash);
-    xmlFreeDoc(doc);
+    xmlFree(postCharBuffer);
     return ret;
+}
+
+void processPost(PostData *post, Context *ctx) {
+    FilenameList *existingPostsWithHash 
+        = getFilenameListMatchingPattern("./static/posts", contains, (void *)post->normalizedTitleHashString);
+    char *existingPostWithHashContent = NULL;
+    htmlDocPtr existingPostWithHashDoc = NULL;
+    htmlDocPtr newPostDoc = NULL;
+    time_t existingPostWithHashTime;
+
+    bool hasExistingPost = existingPostsWithHash->numberOfFiles > 0;
+    if(hasExistingPost) {
+        existingPostWithHashTime = extractTimeFromFilename(existingPostsWithHash->filenames[0]);
+
+        existingPostWithHashContent = readFile("./static/posts/", existingPostsWithHash->filenames[0]);
+        existingPostWithHashDoc = htmlReadMemory(existingPostWithHashContent, 
+            strlen(existingPostWithHashContent), NULL, "UTF-8", 0);
+    }
+
+    if (!hasExistingPost || post->pubDateUnix < existingPostWithHashTime) {
+        newPostDoc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
+        xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
+        xmlDocSetRootElement(newPostDoc, html);
+        
+        xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
+            addStyle(head, "../theme.css");
+            addStyle(head, "../board.css");
+
+        xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
+            createPostElement(body, post);
+            xmlNodePtr replies = addElement(body, "div", NULL, NULL, "replies");
+
+        //If the existing post has a later date, add the existing post content
+        //to this post and overwrite the existing post with this
+        if (hasExistingPost) {
+            copyXPathFilteredRepliesToNode(existingPostWithHashDoc, "//*[@class='post']", replies);
+            copyXPathFilteredRepliesToNode(existingPostWithHashDoc, "//*[@class='replies']/*", replies);
+
+            removeFile("./static/posts/", existingPostsWithHash->filenames[0]);
+        }
+
+        writePost(ctx->postsDirectoryFullPath, newPostDoc, post->pubDateUnix, post->normalizedTitleHash);
+    }
+
+    //If the existing post has an earlier date, add this post's content
+    //to the existing post
+    else {
+        addPostToReplies(existingPostWithHashDoc, post);
+        writePost(ctx->postsDirectoryFullPath, existingPostWithHashDoc, existingPostWithHashTime, post->normalizedTitleHash);
+    } 
+
+    xmlFreeDoc(newPostDoc);
+    xmlFreeDoc(existingPostWithHashDoc);
+    free(existingPostWithHashContent);
+    freeFilenameList(existingPostsWithHash);
 }
 
 void writeListItem(Context *ctx, xmlNodePtr list, char *postFilename) {
