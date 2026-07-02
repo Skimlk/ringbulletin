@@ -3,7 +3,7 @@
 
 **ringbulletin** is a decentralized content aggregation network built around a federated bulletin board model. It enables users to create and maintain their own boards that reference peers, forming a distributed network of RSS-based content. The system supports blogs, news, announcements, discussions, or any other type of content delivered via RSS.
 
-In addition to federated content discovery, ringbulletin introduces a lightweight reply mechanism: users can respond to other posts by titling their entry in the format `Re: {Original Post Title}`, enabling basic threaded discussions across the network.
+In addition to federated content discovery, ringbulletin introduces a lightweight reply mechanism: users can respond to other posts by ending their entry's title with `Re: {Original Post Title}`, enabling basic threaded discussions across the network. You can put any text you like before the `Re: ` marker — only the ending needs to match the original title.
 
 ## Overview
 
@@ -22,16 +22,13 @@ ringbulletin operates on the principle of federation and distributed content fet
 1. Each user hosts a `board.json` file which includes:
    - Their RSS feed URL.
    - A list of peer board URLs.
-
 2. The program parses the user's own board and recursively fetches peer boards and their associated RSS feeds up to a specified level.
-
 3. All fetched posts are aggregated and can be browsed or processed locally or on the web.
-
 4. **Replying to Posts**:  
-   Users can reply to any post in the network by creating a new entry in their RSS feed where the title begins with `Re: ` followed by the exact title of the original post.  
+   Users can reply to any post in the network by creating a new entry in their RSS feed whose title ends with `Re: ` followed by the exact title of the original post. Anything can come before the `Re: ` marker, so you're free to add your own pre-title text.  
    For example:
    - Original post: `My Thoughts on Decentralization`
-   - Reply: `Re: My Thoughts on Decentralization`
+   - Reply: `This is my response Re: My Thoughts on Decentralization`
 
    This allows ringbulletin to group related posts and represent them as simple threaded discussions.
 
