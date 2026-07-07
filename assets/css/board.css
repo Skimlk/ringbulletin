@@ -70,7 +70,7 @@ summary {
     cursor: pointer;
 }
 
-.dropdown-button {
+.navbar-button {
     height: 32px;
     width: 32px;
     border-radius: 50%;
@@ -83,11 +83,11 @@ summary {
     position: relative;
 }
 
-.dropdown-button:hover {
+.navbar-button:hover {
     background-color: color-mix(in srgb, var(--color-navbar), white 15%);
 }
 
-.icon-button {
+.navbar-button-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -95,33 +95,11 @@ summary {
     height: 32px;
 }
 
-.icon-button svg {
+.navbar-button-icon svg {
     fill: var(--color-text);
     width: 20px;
     height: 20px;
     display: block;
-}
-
-.dropdown-menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    padding: 12px 16px;
-    min-width: 160px;
-    background-color: var(--color-navbar);
-    border: 1px solid var(--color-accent);
-    border-radius: 6px;
-    box-shadow: 0 6px 18px var(--color-dropdown-shadow);
-    color: var(--color-text);
-    z-index: 2000;
-}
-
-details.dropdown-button[open] summary::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background-color: var(--color-overlay);
-    z-index: 999;
 }
 
 #board {
@@ -150,7 +128,7 @@ details.dropdown-button[open] summary::before {
     background-color: var(--color-reply-bg);
     border-radius: 6px;
     padding: 12px 16px;
-    box-shadow: 0 1px 3px var(--color-dropdown-shadow);
+    box-shadow: 0 1px 3px var(--color-shadow);
     border: 1px solid rgba(81, 87, 109, 0.15);
     margin-left: 16px;
 }

@@ -44,8 +44,7 @@ int loadConfig(char *configPath, ConfigValues *configValues) {
 	}
 
 	if(
-		loadStringValue(configValues->boardJsonUrl, configJson, "boardJsonUrl", URL_MAX) ||
-		loadStringValue(configValues->boardJsonPath, configJson, "boardJsonPath", PATH_MAX) ||
+		loadStringValue(configValues->boardGenerationUrl, configJson, "boardGenerationUrl", URL_MAX) ||
 		loadStringValue(configValues->boardGenerationDirectory, configJson, "boardGenerationDirectory", PATH_MAX) ||
 		loadIntValue(&configValues->searchDepth, configJson, "searchDepth")
 	) {

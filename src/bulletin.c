@@ -49,12 +49,12 @@ void freePostData(PostData *post) {
     free(post);
 }
 
-void copyXPathFilteredRepliesToNode(htmlDocPtr htmlToFilter, char *xPathString, xmlNodePtr dest) {
+void copyXPathResults(htmlDocPtr htmlToFilter, char *xPathString, xmlNodePtr dest) {
     xmlXPathContextPtr xmlXPathHtmlToFilter = xmlXPathNewContext(htmlToFilter); 
     xmlXPathObjectPtr filteredHtml = xmlXPathEvalExpression(BAD_CAST xPathString, xmlXPathHtmlToFilter);
     for(int i = 0; i < filteredHtml->nodesetval->nodeNr; i++) {
         xmlNodePtr filterResult = filteredHtml->nodesetval->nodeTab[i];
-        
+
         xmlUnsetProp(filterResult, BAD_CAST "class");
         xmlNewProp(filterResult, BAD_CAST "class", BAD_CAST "reply");
 
@@ -69,7 +69,7 @@ void copyXPathFilteredRepliesToNode(htmlDocPtr htmlToFilter, char *xPathString, 
 void addPostToReplies(htmlDocPtr destDoc, PostData *post) {
     xmlXPathContextPtr destDocContext = xmlXPathNewContext(destDoc);
     xmlXPathObjectPtr repliesFilter = xmlXPathEvalExpression(BAD_CAST "//*[@class='replies']", destDocContext);
-    createPostElement(repliesFilter->nodesetval->nodeTab[0], post);
+    createPostElement(repliesFilter->nodesetval->nodeTab[0], post, "reply");
 
     xmlXPathFreeObject(repliesFilter);
     xmlXPathFreeContext(destDocContext);
@@ -110,7 +110,6 @@ void processPost(PostData *post, Context *ctx) {
     bool hasExistingPost = existingPostsWithHash->numberOfFiles > 0;
     if(hasExistingPost) {
         existingPostWithHashTime = extractTimeFromFilename(existingPostsWithHash->filenames[0]);
-
         existingPostWithHashContent = readFile(ctx->postsDirectoryFullPath, existingPostsWithHash->filenames[0]);
         existingPostWithHashDoc = htmlReadMemory(existingPostWithHashContent, 
             strlen(existingPostWithHashContent), NULL, "UTF-8", 0);
@@ -126,14 +125,14 @@ void processPost(PostData *post, Context *ctx) {
             addStyle(head, "../board.css");
 
         xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
-            createPostElement(body, post);
+            createPostElement(body, post, "post");
             xmlNodePtr replies = addElement(body, "div", NULL, NULL, "replies");
 
         //If the existing post has a later date, add the existing post content
         //to this post and overwrite the existing post with this
         if (hasExistingPost) {
-            copyXPathFilteredRepliesToNode(existingPostWithHashDoc, "//*[@class='post']", replies);
-            copyXPathFilteredRepliesToNode(existingPostWithHashDoc, "//*[@class='replies']/*", replies);
+            copyXPathResults(existingPostWithHashDoc, "//*[@class='post']", replies);
+            copyXPathResults(existingPostWithHashDoc, "//*[@class='replies']/*", replies);
 
             removeFile(ctx->postsDirectoryFullPath, existingPostsWithHash->filenames[0]);
         }
@@ -169,8 +168,8 @@ void writeListItem(Context *ctx, xmlNodePtr list, char *postFilename) {
     xmlNodePtr copyPostInner = xmlDocCopyNode(postInner->nodesetval->nodeTab[0], list->doc, 1);
         xmlNewChild(copyPostInner->children->children, NULL, BAD_CAST "span", BAD_CAST " • ");
         xmlNodePtr viewThreadLink = xmlNewChild(copyPostInner->children->children, NULL, BAD_CAST "a", BAD_CAST "View Thread");
-                xmlNewProp(viewThreadLink, BAD_CAST "href", BAD_CAST itemRelativePath);
-                xmlNewProp(viewThreadLink, BAD_CAST "target", BAD_CAST "content-iframe");
+            xmlNewProp(viewThreadLink, BAD_CAST "href", BAD_CAST itemRelativePath);
+            xmlNewProp(viewThreadLink, BAD_CAST "target", BAD_CAST "content-iframe");
     
     xmlAddChild(list, copyPostInner);
     
@@ -232,6 +231,87 @@ cleanup:
     return ret;
 }
 
+void writeConnectPage(Context *ctx) {
+	htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
+	xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
+	xmlDocSetRootElement(doc, html);
+
+	xmlNodePtr head = addElement(html, "head", NULL, NULL, NULL);
+		addStyle(head, "./theme.css");
+		addStyle(head, "./board.css");
+
+	xmlNodePtr body = addElement(html, "body", NULL, NULL, NULL);
+		xmlNodePtr board = addElement(body, "div", NULL, "board", NULL);
+			xmlNodePtr intro = addElement(board, "div", NULL, NULL, "post");
+				addElement(intro, "div", "Connect with this Board", NULL, "post-title");
+				addElement(intro, "div", "Add this RingBulletin board to your network and start discovering federated content.", NULL, NULL);
+				addElement(intro, "div", "Board URL:", NULL, "post-meta");
+
+				xmlNodePtr boardUrl = addElement(intro, "textarea", ctx->boardJsonUrl, NULL, NULL);
+				xmlNewProp(boardUrl, BAD_CAST "readonly", BAD_CAST "readonly");
+				xmlNewProp(boardUrl, BAD_CAST "rows", BAD_CAST "1");
+
+			xmlNodePtr peers = addElement(board, "div", NULL, NULL, "post");
+				addElement(peers, "div", "How to add this board to your peers", NULL, "post-title");
+                
+                xmlNodePtr desc = addElement(peers, "div", NULL, NULL, "post-description");
+                    addElement(desc, "div", "1. Copy the Board URL above.", NULL, NULL);
+                    addElement(desc, "div", "2. Open (or create) your \"board.json\" file.", NULL, NULL);
+                    addElement(desc, "div", "3. Add the URL to the \"peers\" array.", NULL, NULL);
+                    addElement(desc, "div", "4. Run RingBulletin — it will automatically fetch posts from this board and its network.", NULL, NULL);
+
+                addElement(peers, "div", "Example \"board.json\" snippet:", NULL, "post-meta");
+
+                char *snippetText = NULL;
+                asprintf(
+                    &snippetText,
+                    "{\n"
+                    "  \"title\": \"My Board\",\n"
+                    "  \"feeds\": [\"https://yoursite.com/feed.xml\"],\n"
+                    "  \"peers\": [\n"
+                    "    \"%s\",\n"
+                    "    \"...\"\n"
+                    "  ]\n"
+                    "}",
+                    ctx->boardJsonUrl
+                );
+
+                xmlNodePtr snippet = addElement(peers, "textarea", snippetText, NULL, NULL);
+                    xmlNewProp(snippet, BAD_CAST "readonly", BAD_CAST "readonly");
+                    xmlNewProp(snippet, BAD_CAST "rows", BAD_CAST "8");
+
+				free(snippetText);
+
+			xmlNodePtr embed = addElement(board, "div", NULL, NULL, "post");
+				addElement(embed, "div", "Embed this board on your website", NULL, "post-title");
+				addElement(embed, "div", "Display the full board directly on your site using this iframe:", NULL, "post-description");
+
+				char *iframeText = NULL;
+				asprintf(
+					&iframeText,
+					"<iframe style=\"height: 750px; width: 100%%; border: none; border-radius: 12px;\"\n"
+					"    src=\"%s\"\n"
+					"    title=\"RingBulletin Board\" allowfullscreen>\n"
+					"</iframe>",
+					ctx->boardHtmlUrl
+				);
+
+				xmlNodePtr iframe = addElement(embed, "textarea", iframeText, NULL, NULL);
+                    xmlNewProp(iframe, BAD_CAST "readonly", BAD_CAST "readonly");
+                    xmlNewProp(iframe, BAD_CAST "rows", BAD_CAST "4");
+
+				free(iframeText);
+
+	xmlChar *serialized = NULL;
+	int size = 0;
+	htmlDocDumpMemoryFormat(doc, &serialized, &size, 1);
+
+	writeFile((const char *)serialized, &size, ctx->config->boardGenerationDirectory, "connect.html");
+
+	xmlFreeDoc(doc);
+	xmlFree(serialized);
+}
+
 int writeBulletin(Context *ctx) {
     htmlDocPtr doc = htmlNewDoc(BAD_CAST "http://www.w3.org/TR/html4/strict.dtd", BAD_CAST "HTML");
     xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
@@ -247,18 +327,9 @@ int writeBulletin(Context *ctx) {
                 xmlNodePtr titleLink = addElement(mainNavbarSection, "a", "RingBulletin", "title-link", NULL);
                     xmlNewProp(titleLink, BAD_CAST "href", BAD_CAST "./board.html");
 			xmlNodePtr rightNavbarSection = addElement(navbar, "div", NULL, "nav-right", NULL);
-                xmlNodePtr aboutDropdown = addDropdownButton(rightNavbarSection, "./assets/svg/help-info-solid.svg");
-                xmlNodeAddContent(aboutDropdown, BAD_CAST "About ");
-                xmlNodePtr githubLink = xmlNewChild(aboutDropdown, NULL, BAD_CAST "a", BAD_CAST "GitHub");
-                    xmlNewProp(githubLink, BAD_CAST "href", BAD_CAST "https://github.com/Skimlk/ringbulletin");
-                    xmlNewProp(githubLink, BAD_CAST "target", BAD_CAST "_blank");
-
-                xmlNodePtr copyDropdown = addDropdownButton(rightNavbarSection, "./assets/svg/copy-to-clipboard-line.svg");
-                xmlNodeAddContent(copyDropdown, BAD_CAST "Board URL:");
-                xmlNodePtr boardUrl = xmlNewChild(copyDropdown, NULL, BAD_CAST "input", NULL);
-                    xmlNewProp(boardUrl, BAD_CAST "type", BAD_CAST "text");
-                    xmlNewProp(boardUrl, BAD_CAST "value", BAD_CAST ctx->config->boardJsonUrl);
-        
+                addNavbarButton(rightNavbarSection, "./about.html", "./assets/svg/help-info-solid.svg");
+                addNavbarButton(rightNavbarSection, "./connect.html", "./assets/svg/copy-to-clipboard-line.svg");
+                        
         char *listTimestampedFilename = createTimestampedFilename("./list.html", "?");
         writeList(ctx);
         xmlNodePtr listIFrame = addElement(body, "iframe", NULL, "content-iframe", NULL);
@@ -272,11 +343,14 @@ int writeBulletin(Context *ctx) {
 
     if(!postSerialized) {
         printf("Post was not serialized\n");
-    }   
-
-    writeFile((const char *)postSerialized, &size, "./static/", "board.html");
-    copyFile("./assets/css/", "theme.css", "./static/", "theme.css"); 
-    copyFile("./assets/css/", "board.css", "./static/", "board.css"); 
+    }
+    
+    copyFile(NULL, "./board.json", ctx->config->boardGenerationDirectory, "board.json"); 
+    copyFile(NULL, "./assets/css/theme.css", ctx->config->boardGenerationDirectory, "theme.css"); 
+    copyFile(NULL, "./assets/css/board.css", ctx->config->boardGenerationDirectory, "board.css"); 
+    copyFile(NULL, "./assets/html/about.html", ctx->config->boardGenerationDirectory, "about.html"); 
+    writeConnectPage(ctx);
+    writeFile((const char *)postSerialized, &size, ctx->config->boardGenerationDirectory, "board.html");
 
     xmlFreeDoc(doc);
     xmlFree(postSerialized);

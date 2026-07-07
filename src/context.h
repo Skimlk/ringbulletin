@@ -11,6 +11,8 @@ typedef struct Context {
 	time_t searchStartTime;
 	char *postsDirectoryRelativePath;
 	char *postsDirectoryFullPath;
+	char *boardJsonUrl;
+	char *boardHtmlUrl;
 } Context;
 
 #endif

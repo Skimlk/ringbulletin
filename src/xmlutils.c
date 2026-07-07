@@ -18,8 +18,8 @@ void addStyle(xmlNodePtr head, const char *stylePath) {
     xmlNewProp(link, BAD_CAST "href", BAD_CAST stylePath);
 }
 
-xmlNodePtr createPostElement(xmlNodePtr parent, const PostData *post) {
-    xmlNodePtr postElement = addElement(parent, "div", NULL, NULL, "post");
+xmlNodePtr createPostElement(xmlNodePtr parent, const PostData *post, const char *class) {
+    xmlNodePtr postElement = addElement(parent, "div", NULL, NULL, class);
         xmlNodePtr postHeader = addElement(postElement, "div", NULL, NULL, "post-header");
             xmlNodePtr postTitle = addElement(postHeader, "div", NULL, NULL, "post-title"); 
                 xmlNodePtr postLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST post->title);
@@ -36,24 +36,18 @@ xmlNodePtr createPostElement(xmlNodePtr parent, const PostData *post) {
     return postElement;
 }
 
-xmlNodePtr addDropdownButton(xmlNodePtr parent, char *iconPath) {
-    xmlNodePtr details = addElement(parent, "details", NULL, NULL, "dropdown-button");
-        xmlNodePtr summary = addElement(details, "summary", NULL, NULL, "icon-button");
+void addNavbarButton(xmlNodePtr parent, char *linkPath, char *iconPath) {
+    xmlNodePtr navbarButton = addElement(parent, "a", NULL, NULL, "navbar-button");
+        xmlNewProp(navbarButton, BAD_CAST "href", BAD_CAST linkPath);
+        xmlNewProp(navbarButton, BAD_CAST "target", BAD_CAST "content-iframe");
+
+        xmlNodePtr navbarButtonIcon = addElement(navbarButton, "span", NULL, NULL, "navbar-button-icon");
             char *icon = readFile(NULL, iconPath);
-            xmlDocPtr iconDoc = xmlReadMemory(
-                icon,
-                (int)strlen(icon),
-                "icon.svg",
-                NULL,
-                XML_PARSE_NOERROR | XML_PARSE_NOWARNING
-            );
+            xmlDocPtr iconDoc = xmlReadMemory(icon, (int)strlen(icon), "icon.svg", NULL, 0);
             xmlNodePtr iconRoot = xmlDocGetRootElement(iconDoc);
             xmlNodePtr importedIcon = xmlDocCopyNode(iconRoot, parent->doc, 1);
-            xmlAddChild(summary, importedIcon);
-   
-        xmlNodePtr dropdownMenu = addElement(details, "div", NULL, NULL, "dropdown-menu");
+            xmlAddChild(navbarButtonIcon, importedIcon);
 
     xmlFreeDoc(iconDoc);
     free(icon);
-    return dropdownMenu;
 }

@@ -45,11 +45,11 @@ void printError(char *msg) {
 int searchedAlready(Context *ctx, const char *categoryString, const char *itemString) {
 	double lastSearched;
 
-	if (getJsonHistoryItemProperty(ctx, categoryString, itemString, "lastSearched", &lastSearched) != 0
+	if (getJsonHistoryItemProperty(categoryString, itemString, "lastSearched", &lastSearched) != 0
 		|| lastSearched < ctx->searchStartTime
 	) {
 		double now = (double)ctx->searchStartTime;
-		updateJsonHistoryItemProperty(ctx, categoryString, itemString, "lastSearched", &now, addDoubleToJsonHistoryItem);
+		updateJsonHistoryItemProperty(categoryString, itemString, "lastSearched", &now, addDoubleToJsonHistoryItem);
 		return 0;
 	}
 
@@ -72,17 +72,17 @@ int feedIsValid(xmlDocPtr doc) {
 	return 1;
 }
 
-int postAlreadyWritten(PostData *post, char *url, Context *ctx) {
+int postAlreadyWritten(PostData *post, char *url) {
 	int ret = 1;
 	char *lastSearchedPostTitleHash = NULL;
 	double lastSearchedPostDate;
 	
-	if (getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", &lastSearchedPostTitleHash) != 0) {
+	if (getJsonHistoryItemProperty("feeds", url, "lastSearchedPostTitleHash", &lastSearchedPostTitleHash) != 0) {
 		ret = 0;
 		goto cleanup;
 	}
 
-	if (getJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &lastSearchedPostDate) != 0) {
+	if (getJsonHistoryItemProperty("feeds", url, "lastSearchedPostDate", &lastSearchedPostDate) != 0) {
 		ret = 0;
 		goto cleanup;
 	}
@@ -183,7 +183,7 @@ int processFeed(char *feed, Context *ctx, char *url) {
 
 		if (i == 0) copyPostData(latestPost, post);
 	
-		if (!postAlreadyWritten(post, url, ctx)) {
+		if (!postAlreadyWritten(post, url)) {
 			processPost(post, ctx);
 			freePostData(post);
 		}
@@ -193,9 +193,9 @@ int processFeed(char *feed, Context *ctx, char *url) {
 		}
 	}
 
-	updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostTitleHash", latestPost->normalizedTitleHashString, addStringToJsonHistoryItem);
+	updateJsonHistoryItemProperty("feeds", url, "lastSearchedPostTitleHash", latestPost->normalizedTitleHashString, addStringToJsonHistoryItem);
 	double pubDateUnixDoubleHelper = (double)latestPost->pubDateUnix;
-	updateJsonHistoryItemProperty(ctx, "feeds", url, "lastSearchedPostDate", &pubDateUnixDoubleHelper, addDoubleToJsonHistoryItem);
+	updateJsonHistoryItemProperty("feeds", url, "lastSearchedPostDate", &pubDateUnixDoubleHelper, addDoubleToJsonHistoryItem);
 
 cleanup:
 	xmlXPathFreeObject(itemNodes);
@@ -274,13 +274,17 @@ int main(int argc, char **argv) {
 	if(loadConfig(CONFIG_PATH, &config))
 		return 1;
 
-	Context ctx = { &config, time(NULL), NULL, NULL };
+	Context ctx;
+	ctx.config = &config;
+	ctx.searchStartTime = time(NULL);	
 	ctx.postsDirectoryRelativePath = "posts/";
 	asprintf(&ctx.postsDirectoryFullPath, "%s/%s",
 		config.boardGenerationDirectory, ctx.postsDirectoryRelativePath);
+	asprintf(&ctx.boardJsonUrl, "%s/%s", config.boardGenerationUrl, "board.json");
+	asprintf(&ctx.boardHtmlUrl, "%s/%s", config.boardGenerationUrl, "board.html");
 	
 	// Load board file
-	boardJson = loadJson(NULL, config.boardJsonPath);
+	boardJson = loadJson(NULL, "./board.json");
 
 	if(!boardJson) {
 		printError("Unable to load board values.");
@@ -290,12 +294,13 @@ int main(int argc, char **argv) {
 
 	//Remove generated files on reload
 	if(reloadFlag == 1 && directoryExists(config.boardGenerationDirectory)) {
-		removeFile(config.boardGenerationDirectory, "history.json");
+		removeFile(NULL, "./history.json");
+		processFiles(ctx.postsDirectoryFullPath, (void *)removeCallback, config.boardGenerationDirectory);
 		processFiles(ctx.postsDirectoryFullPath, (void *)removeCallback, ctx.postsDirectoryFullPath);
 	}
 
 	// Search Boards and Feeds
-	searchedAlready(&ctx, "boards", config.boardJsonUrl);
+	searchedAlready(&ctx, "boards", ctx.boardJsonUrl);
 	searchBoard(boardJson, &ctx, 0);
 
 	writeBulletin(&ctx);
