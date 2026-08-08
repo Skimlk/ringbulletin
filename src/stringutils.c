@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <time.h>
+#include <curl/urlapi.h>
 
 char *strlwr(char *string) {
 	char *character = string;
@@ -60,6 +61,86 @@ char *normalize(char *string) {
 	);
 }
 
+char *getDomainFromLink(const char *link) {
+	if (!link || *link == '\0')
+		return NULL;
+
+	CURLU *urlHandle = curl_url();
+	if (!urlHandle)
+		return NULL;
+
+	char *host = NULL;
+	char *domain = NULL;
+
+	if (
+		curl_url_set(urlHandle, CURLUPART_URL, link, 0) == CURLUE_OK &&
+		curl_url_get(urlHandle, CURLUPART_HOST, &host, 0) == CURLUE_OK &&
+		host[0] != '\0'
+	)
+		domain = strdup(host);
+
+	curl_free(host);
+	curl_url_cleanup(urlHandle);
+	return domain;
+}
+
+int normalizeUrl(char **urlPtr) {
+	if (!urlPtr || !*urlPtr) {
+        return 1;
+    }
+
+    CURLU *urlHandle = curl_url();
+    if (!urlHandle) {
+        return 1;
+    }
+
+    CURLUcode curlResultCode;
+    char *normalizedUrl = NULL;
+    char *path = NULL;
+
+    char *fragment = strchr(*urlPtr, '#');
+    if (fragment) {
+        *fragment = '\0';
+    }
+
+    curlResultCode = curl_url_set(urlHandle, CURLUPART_URL, *urlPtr, 0);
+    if (curlResultCode != CURLUE_OK) {
+        curl_url_cleanup(urlHandle);
+        return 1;
+    }
+
+    curl_url_set(urlHandle, CURLUPART_FRAGMENT, NULL, 0);
+
+    if (curl_url_get(urlHandle, CURLUPART_PATH, &path, 0) == CURLUE_OK && path) {
+        char *src = path;
+        char *dst = path;
+        while (*src) {
+            *dst++ = *src;
+            if (*src == '/') {
+                while (*(src + 1) == '/') {
+                    src++;
+                }
+            }
+            src++;
+        }
+        *dst = '\0';
+        curl_url_set(urlHandle, CURLUPART_PATH, path, 0);
+        curl_free(path);
+    }
+
+    curlResultCode = curl_url_get(urlHandle, CURLUPART_URL, &normalizedUrl, 0);
+    curl_url_cleanup(urlHandle);
+
+    if (curlResultCode != CURLUE_OK) {
+        return 1;
+    }
+
+    free(*urlPtr);
+    *urlPtr = normalizedUrl;
+
+    return 0;
+}
+
 time_t extractTimeFromFilename(char *filename) {
 	char timeString[13];
 
@@ -95,11 +176,22 @@ time_t getUnixTimestampFromTimeFormatString(char *timeFormatString) {
         "%a, %d %b %Y %H:%M:%S GMT",
     };
 
-    for(long unsigned int i = 0; i < sizeof(timeFormats) / sizeof(char *); i++) {
+    for(size_t i = 0; i < sizeof(timeFormats) / sizeof(char *); i++) {
         if(strptime(timeFormatString, timeFormats[i], &timeStructHelper) != NULL)
 			return mktime(&timeStructHelper);
     }
 
     fprintf(stderr, "Failed to parse date-time.\n");
     return 1;
+}
+
+void getFormattedTimeStrForPost(time_t time, char *buffer, size_t size) {
+	struct tm *localTime = localtime(&time);
+	const char *weekdays[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+	snprintf(buffer, size, "%02d/%02d/%02d(%s)",
+		localTime->tm_mon + 1,          // month 1-12
+		localTime->tm_mday,             // day
+		localTime->tm_year % 100,       // year (last 2 digits)
+		weekdays[localTime->tm_wday]	// weekday
+	);
 }

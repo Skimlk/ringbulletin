@@ -8,6 +8,7 @@
 #include <time.h>
 #include <stdint.h>
 #include <dirent.h>
+#include <unistd.h>
 
 #include <libxml/HTMLtree.h>
 #include <cjson/cJSON.h>
@@ -37,13 +38,15 @@ int invalidPath(const char *directory, const char *filename) {
 	return 0;
 }
 
-char *readFile(const char *directory, const char *filename) {
+File readFile(const char *directory, const char *filename) {
+	File fileSt = { NULL, 0 }; 
+	
 	if(invalidFilename(filename))
-		return NULL;
+		return fileSt;
 
 	if(directory) {
 		if(invalidPath(directory, filename))
-			return NULL;
+			return fileSt;
 	} else {
 		directory = "";
 	}
@@ -51,25 +54,31 @@ char *readFile(const char *directory, const char *filename) {
 	char path[PATH_MAX];
 	snprintf(path, PATH_MAX, "%s%s", directory, filename);
 	
-	FILE *file = fopen(path, "rb");
-	if(!file) {
-		printf("Could not open file '%s'.\n", path);
-		return NULL;
+	FILE *fileHandle = fopen(path, "rb");
+	if(!fileHandle) {
+		return fileSt;
 	}	
 	
 	struct stat fileStat;
 	if(stat(path, &fileStat) == -1) {
-		printf("Could not get file '%s' status.\n", path);
-		return NULL;
+		return fileSt;
 	}
 
-	char *fileContents = (char*)malloc(fileStat.st_size + 1);
-	size_t bytesRead = fread(fileContents, 1, fileStat.st_size, file);
-	fclose(file);
-	
-	fileContents[bytesRead] = '\0';
+	fileSt.content = (char*)malloc(fileStat.st_size);
+	fileSt.size = fread(fileSt.content, 1, fileStat.st_size, fileHandle);
 
-	return fileContents;
+	fclose(fileHandle);
+	
+	return fileSt;
+}
+
+char *readFileStr(const char *directory, const char *filename) {
+	File fileStruct = readFile(directory, filename);
+    char *fileString = malloc(fileStruct.size + 1);
+    memcpy(fileString, fileStruct.content, fileStruct.size);
+    fileString[fileStruct.size] = '\0';
+    free(fileStruct.content);
+	return fileString;
 }
 
 int writeFile(const char *content, const int *size, const char *directory, const char *filename) {
@@ -123,9 +132,9 @@ int copyFile(
 	const char *sourceDirectory, const char *sourceFilename,
 	const char *destinationDirectory, const char *destinationFilename
 ) {
-	char *sourceContent = readFile(sourceDirectory, sourceFilename);
-	int success = writeFile(sourceContent, NULL, destinationDirectory, destinationFilename);
-	free(sourceContent);
+	File sourceContent = readFile(sourceDirectory, sourceFilename);
+	int success = writeFile(sourceContent.content, (int *)&sourceContent.size, destinationDirectory, destinationFilename);
+	free(sourceContent.content);
 
 	if(success) {
 		fprintf(stderr, "Could not copy file '%s' in '%s' to '%s' in '%s'.\n", 
@@ -165,25 +174,43 @@ int directoryExists(const char *directoryPath) {
 	return 0;
 }
 
+int createDirectory(char *path) {
+	struct stat st = {0};
+
+	if (stat(path, &st) == -1) {
+		mkdir(path, 0700);
+		return 0;
+	}
+
+	return 1;
+}
+
 cJSON *loadJson(const char *directory, const char *path) {
-	char *fileContents = readFile(directory, path);
+	cJSON *ret = NULL;
+
+	char *fileContents = readFileStr(directory, path);
 	if(!fileContents) {
-		return NULL;
+		goto cleanup;
 	}
 
 	cJSON *json = cJSON_Parse(fileContents);
-	free(fileContents);
 
 	if(!json) {
 		const char *errorMsg = cJSON_GetErrorPtr();
-		if(errorMsg) {
-			fprintf(stderr, "Error before: %s\n", errorMsg);
+		if(errorMsg && *errorMsg != '\0') {
+			fprintf(stderr, "JSON parse error before: %.100s\n", errorMsg);
+		} else {
+			fprintf(stderr, "JSON parse error: unknown location\n");
 		}
 
-		return NULL;
+		goto cleanup;
 	}
 
-	return json;
+	ret = json;
+
+cleanup:
+	free(fileContents);
+	return ret;
 }
 
 int writeJson(const cJSON *json, const char *directory, const char *path) {

@@ -8,13 +8,40 @@
 
 html,
 body {
-    height: 100%;
-    font-size: 14px;
-    font-family: "Comic Code", monospace;
+    width: 100%;
+    min-height: 100%;
+
+    font-family: var(--font-main);
+    font-size: 10pt;
+
     background-color: var(--color-bg);
     color: var(--color-text);
+
+    overflow-x: hidden;
     overflow-y: auto;
 }
+
+/*
+ * General links
+ */
+
+a:link,
+a:visited {
+    color: var(--color-accent);
+    text-decoration: none;
+}
+
+a:hover,
+a:active {
+    color: var(--color-link-hover);
+    text-decoration: underline;
+}
+
+/*
+ * Navbar
+ *
+ * The original navbar dimensions and layout are retained.
+ */
 
 #navbar {
     position: sticky;
@@ -25,27 +52,24 @@ body {
     align-items: center;
     justify-content: space-between;
 
-    height: 60px;
+    height: 52px;
     width: 100%;
     padding: 0 16px;
 
     background-color: var(--color-navbar);
-    border-bottom: 1px solid var(--color-accent);
+    border-bottom: 1px solid var(--color-border);
 }
 
 #content-iframe {
-    height: calc(100vh - 60px);
+    display: block;
+
+    height: calc(100vh - 52px);
     width: 100%;
+
     border: none;
+
     background-color: var(--color-bg);
     color: var(--color-text);
-}
-
-a:link,
-a:visited,
-a:hover,
-a:active {
-    text-decoration: none;
 }
 
 #title-link {
@@ -54,136 +78,426 @@ a:active {
     font-weight: 600;
 }
 
+#title-link:hover,
+#title-link:active {
+    color: var(--color-navbar-text);
+}
+
 #nav-right {
     display: flex;
     gap: 12px;
     align-items: center;
 }
 
-details {
-    position: relative;
-    display: inline-block;
-}
-
-summary {
-    list-style: none;
-    cursor: pointer;
-}
-
 .navbar-button {
-    height: 32px;
-    width: 32px;
-    border-radius: 50%;
-    background-color: var(--color-navbar);
+    position: relative;
+
     display: flex;
     align-items: center;
     justify-content: center;
+
+    height: 32px;
+    width: 32px;
+
+    border-radius: 50%;
+    background-color: var(--color-navbar);
+
     transition: background-color 0.2s ease;
     cursor: pointer;
-    position: relative;
 }
 
 .navbar-button:hover {
-    background-color: color-mix(in srgb, var(--color-navbar), white 15%);
+    background-color: color-mix(
+        in srgb,
+        var(--color-navbar),
+        white 15%
+    );
 }
 
 .navbar-button-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-}
+    display: block;
 
-.navbar-button-icon svg {
-    fill: var(--color-text);
     width: 20px;
     height: 20px;
-    display: block;
+
+    background-color: var(--color-text);
+
+    -webkit-mask-position: center;
+    mask-position: center;
+
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+
+    -webkit-mask-size: contain;
+    mask-size: contain;
 }
 
-#board {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+#navbar-button-icon-about {
+    -webkit-mask-image: url("../icons/help-info-solid.svg");
+    mask-image: url("../icons/help-info-solid.svg");
 }
+
+#navbar-button-icon-connect {
+    -webkit-mask-image: url("../icons/copy-to-clipboard-line.svg");
+    mask-image: url("../icons/copy-to-clipboard-line.svg");
+}
+
+/*
+ * Board
+ */
+
+#board {
+    width: 100%;
+    margin: 0;
+    padding: 0 5px;
+}
+
+/*
+ * Thread
+ */
+
+.thread {
+    clear: both;
+
+    width: 100%;
+    margin: 0;
+    padding: 9px 0 5px;
+
+    overflow: hidden;
+}
+
+/*
+ * Shared post layout
+ */
 
 .post,
 .reply {
-    font-size: 12px;
+    display: flow-root;
+    clear: both;
+
+    width: 100%;
+    max-width: 100%;
+
+    margin: 0;
+    padding: 0;
+
     color: var(--color-text);
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
+    font-size: 10pt;
 }
 
-.post {
-    background-color: var(--color-post-bg);
-    border-radius: 8px;
-    padding: 14px 18px;
-    box-shadow: 0 1px 4px rgba(81, 87, 109, 0.5);
+/*
+ * Post icon
+ *
+ * The icon remains outside .post-header. Text initially wraps beside the
+ * floated icon and then continues underneath it.
+ */
+
+.post-icon {
+    float: left;
+
+    width: 32px;
+    height: 32px;
+
+    /*
+     * More space above the icon and little space beneath it.
+     */
+    margin: 6px 8px 2px 20px;
+
+    object-fit: contain;
 }
 
-.reply {
-    background-color: var(--color-reply-bg);
-    border-radius: 6px;
-    padding: 12px 16px;
-    box-shadow: 0 1px 3px var(--color-shadow);
-    border: 1px solid rgba(81, 87, 109, 0.15);
-    margin-left: 16px;
+/*
+ * Post header
+ */
+
+.post-header {
+    display: block;
+
+    min-width: 0;
+    min-height: 16px;
+
+    padding-top: 4px;
+
+    line-height: 16px;
+
+    overflow-wrap: anywhere;
+    word-break: normal;
 }
 
-.replies {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 8px;
-    padding-left: 16px;
+.post-header > span {
+    display: inline;
+    margin-right: 5px;
 }
 
-.replies .post,
-.replies .reply {
-    margin-left: 16px;
-}
-
-.post-title,
-.reply .post-title {
-    font-size: 12px;
-    font-weight: 600;
+.post-title {
     color: var(--color-post-title);
+    font-weight: bold;
 }
 
-.post-description,
-.reply .post-description {
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--color-text);
-}
-
-.post-url {
-    font-size: 11px;
-    color: var(--color-accent);
-    word-break: break-all;
-}
-
-.post-meta,
-.reply .post-meta {
-    font-size: 10px;
-    color: var(--color-accent);
-    display: flex;
-    gap: 4px;
-}
-
-.post-title a {
+.post-title a:link,
+.post-title a:visited {
     color: inherit;
 }
 
-.post-title a:hover {
-    text-decoration: underline;
+.post-title a:hover,
+.post-title a:active {
+    color: var(--color-link-hover);
 }
 
-#board,
-body > .post,
-body > .replies {
-    margin: 16px;
+.post-date {
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.post-url {
+    color: var(--color-post-author);
+    font-size: inherit;
+    font-weight: bold;
+
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.post-url a:link,
+.post-url a:visited,
+.post-url a:hover,
+.post-url a:active {
+    color: inherit;
+}
+
+/*
+ * Post body
+ *
+ * There is no fixed left indentation. The float controls the initial
+ * wrapping, allowing longer descriptions to extend beneath the icon.
+ */
+
+.post-description {
+    display: block;
+
+    margin: 6px 20px 4px;
+    padding: 0;
+
+    color: var(--color-text);
+    font-size: 10pt;
+    line-height: 1.4;
+
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+/*
+ * Replies
+ */
+
+.replies {
+    clear: both;
+
+    width: 100%;
+    margin: 5px 0 0;
+    padding: 0;
+}
+
+.replies:empty {
+    display: none;
+}
+
+.replies > .post,
+.replies > .reply,
+.reply {
+    display: flow-root;
+    clear: both;
+
+    width: calc(100% - 20px);
+    max-width: calc(100% - 20px);
+
+    margin: 3px 0 3px 20px;
+    padding: 4px;
+
+    background-color: var(--color-reply-bg);
+
+    border: 1px solid var(--color-border);
+    border-top: none;
+    border-left: none;
+}
+
+/*
+ * Reply icons use the same spacing as OP icons.
+ */
+
+.replies .post-icon,
+.reply .post-icon {
+    margin: 6px 8px 2px 18px;
+}
+
+.replies .post-header,
+.reply .post-header {
+    padding-top: 4px;
+}
+
+.replies .post-description,
+.reply .post-description {
+    margin: 6px 16px 4px;
+}
+
+/*
+ * Generated thread separators
+ */
+
+hr {
+    display: block;
+    clear: both;
+
+    width: 100%;
+    height: 0;
+
+    margin: 7px 0;
+
+    border: none;
+    border-top: 1px solid var(--color-border);
+}
+
+/*
+ * Connect page
+ */
+
+#connect-board {
+    width: 100%;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 18px 20px 28px;
+}
+
+.connect-section {
+    margin-bottom: 16px;
+    padding: 16px 18px;
+
+    background-color: var(--color-reply-bg);
+    border: 1px solid var(--color-border);
+}
+
+.connect-section:last-child {
+    margin-bottom: 0;
+}
+
+.connect-section .post-title {
+    margin-bottom: 6px;
+    font-size: 11pt;
+}
+
+.connect-copy,
+.connect-steps {
+    line-height: 1.4;
+}
+
+.connect-steps {
+    display: grid;
+    gap: 4px;
+    margin: 10px 0 14px 20px;
+}
+
+.connect-label {
+    margin: 12px 0 5px;
+    font-weight: bold;
+}
+
+.connect-textarea {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    padding: 8px 10px;
+
+    resize: vertical;
+    overflow: auto;
+
+    color: var(--color-text);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 2px;
+
+    font-family: monospace;
+    font-size: 10pt;
+    line-height: 1.4;
+}
+
+.connect-url {
+    min-height: 36px;
+    resize: none;
+}
+
+.connect-snippet {
+    min-height: 180px;
+}
+
+.connect-embed {
+    min-height: 105px;
+}
+
+/*
+ * Narrow layouts
+ */
+
+@media only screen and (max-width: 480px) {
+    #board {
+        padding: 0 3px;
+    }
+
+    #connect-board {
+        padding: 10px 8px 18px;
+    }
+
+    .connect-section {
+        padding: 12px;
+    }
+
+    .thread {
+        padding-top: 5px;
+    }
+
+    .post-icon {
+        margin-left: 8px;
+    }
+
+    .post-header {
+        padding-top: 3px;
+        line-height: 15px;
+    }
+
+    .post-header > span {
+        margin-right: 3px;
+    }
+
+    .post-url {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .post-description {
+        margin-right: 8px;
+        margin-left: 8px;
+    }
+
+    .replies > .post,
+    .replies > .reply,
+    .reply {
+        width: calc(100% - 8px);
+        max-width: calc(100% - 8px);
+
+        margin-left: 8px;
+    }
+
+    .replies .post-icon,
+    .reply .post-icon {
+        margin-left: 8px;
+    }
+
+    .replies .post-description,
+    .reply .post-description {
+        margin-right: 8px;
+        margin-left: 8px;
+    }
+
+    hr {
+        margin: 3px 0;
+    }
 }

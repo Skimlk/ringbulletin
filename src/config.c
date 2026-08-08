@@ -51,7 +51,10 @@ int loadConfig(char *configPath, ConfigValues *configValues) {
 		printf("Unable to load config values.");
 		ret = 1;
 		goto cleanup;
-	} 
+	}
+
+	if(loadStringValue(configValues->theme, configJson, "theme", PATH_MAX - strlen(".css")) == 1)
+		strcpy(configValues->theme, "yotsuba");
 
 	printf("Loaded config '%s'.\n", configPath);
 

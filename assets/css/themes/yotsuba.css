@@ -1,0 +1,28 @@
+:root {
+    /* Typography */
+    --font-main: Arial, Helvetica, sans-serif;
+
+    /* Background */
+    --color-bg: rgb(255, 247, 237);
+    --color-text: rgb(128, 0, 0);
+    --color-border: rgb(217, 191, 183);
+
+    /* Navigation */
+    --color-navbar: rgb(240, 224, 214);
+    --color-navbar-text: rgb(128, 0, 0);
+
+    /* Accent */
+    --color-accent: rgb(0, 0, 238);
+
+    /* Posts */
+    --color-post-bg: rgb(240, 224, 214);
+    --color-reply-bg: rgb(248, 236, 227);
+
+    /* Post header */
+    --color-post-title: rgb(204, 17, 5);
+    --color-post-author: rgb(17, 119, 67);
+
+    /* Effects */
+    --color-shadow: rgba(0, 0, 0, 0.15);
+    --color-overlay: rgba(0, 0, 0, 0.20);
+}

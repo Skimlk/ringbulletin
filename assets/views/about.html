@@ -5,11 +5,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="stylesheet" href="./theme.css" />
-<link rel="stylesheet" href="./style.css" />
+<link rel="stylesheet" href="../css/theme.css" />
+<link rel="stylesheet" href="../css/style.css" />
 <style>
   body {
-    font-family: "Comic Code", monospace;
+    font-family: var(--font-main);
+    background-color: var(--color-bg);
+    color: var(--color-text);
   }
   .about {
     max-width: 760px;
@@ -17,32 +19,15 @@
     padding: 0px 20px 25px;
   }
 
-  .eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--color-accent);
-  }
-
-  .hero-title {
-    font-size: 42px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--color-navbar-text);
-    line-height: 1.1;
-  }
-  .hero-title .ring-o {
-    display: inline-block;
-    position: relative;
-  }
-
   .hero-lede {
-    font-size: 14px;
-    line-height: 1.75;
+    margin-bottom: 0;
+    font-size: 15px;
+    line-height: 1.65;
     color: var(--color-text);
+  }
+  .brand-name {
+    color: var(--color-post-title);
+    font-weight: bold;
   }
 
   /* signature: recursive peer-discovery rings diagram */
@@ -57,9 +42,7 @@
     flex-wrap: wrap;
   }
   .rings-caption span {
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: 12px;
     color: var(--color-text);
     display: inline-flex;
     align-items: center;
@@ -79,14 +62,12 @@
     margin-top: none;
   }
   .block h2 {
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--color-accent);
+    font-size: 14px;
+    color: var(--color-post-title);
     margin-bottom: 18px;
   }
   .block p, li {
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.75;
     color: var(--color-text);
   }
@@ -105,23 +86,24 @@
     background-color: var(--color-post-bg);
     border-radius: 8px;
     padding: 14px 16px;
-    box-shadow: 0 1px 4px rgba(81, 87, 109, 0.5);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 1px 4px var(--color-shadow);
   }
   .steps .num {
     flex: none;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--color-post-title);
     width: 20px;
   }
   .steps .step-body b {
     display: block;
-    font-size: 12px;
+    font-size: 14px;
     color: var(--color-navbar-text);
     margin-bottom: 3px;
   }
   .steps .step-body span {
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.6;
     color: var(--color-text);
   }
@@ -131,7 +113,7 @@
     color: var(--color-post-title);
     border-radius: 4px;
     padding: 1px 6px;
-    font-size: 12px;
+    font-size: 13px;
   }
 
   pre.code-block {
@@ -140,12 +122,13 @@
     border-radius: 8px;
     padding: 16px 18px;
     overflow-x: auto;
-    box-shadow: 0 1px 4px rgba(81, 87, 109, 0.5);
-    font-size: 12px;
+    border: 1px solid var(--color-border);
+    box-shadow: 0 1px 4px var(--color-shadow);
+    font-size: 13px;
     line-height: 1.6;
     color: var(--color-text);
   }
-  pre.code-block .k { color: var(--color-accent); }
+  pre.code-block .k { color: var(--color-post-author); }
   pre.code-block .s { color: var(--color-post-title); }
 
   .dep-grid {
@@ -156,18 +139,18 @@
   }
   .dep-grid .dep {
     background-color: var(--color-reply-bg);
-    border: 1px solid rgba(81, 87, 109, 0.15);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     padding: 12px 14px;
   }
   .dep b {
     display: block;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--color-post-title);
     margin-bottom: 4px;
   }
   .dep span {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--color-text);
     line-height: 1.55;
   }
@@ -175,7 +158,7 @@
   footer.about-footer {
     margin-top: 25px;
     padding-top: 24px;
-    border-top: 1px solid rgba(81, 87, 109, 0.25);
+    border-top: 1px solid var(--color-border);
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
@@ -183,12 +166,12 @@
     gap: 16px;
   }
   footer.about-footer a {
-    color: var(--color-accent);
-    font-size: 12px;
+    color: var(--color-post-author);
+    font-size: 13px;
   }
   footer.about-footer a:hover { text-decoration: underline; }
   footer.about-footer .repo-cmd {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--color-text);
     background-color: var(--color-post-bg);
     border-radius: 6px;
@@ -197,13 +180,12 @@
 
   a:focus-visible,
   summary:focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--color-post-title);
     outline-offset: 2px;
     border-radius: 4px;
   }
 
   @media (max-width: 520px) {
-    .hero-title { font-size: 32px; }
     .dep-grid { grid-template-columns: 1fr; }
   }
 </style>
@@ -211,11 +193,8 @@
 <body>
 
 <main class="about">
-  <h1 class="hero-title">RingBulletin</h1>
-  <p class="eyebrow">A federated bulletin network</p>
-
   <p class="hero-lede">
-    A decentralized content aggregation network built around a federated bulletin
+    <span class="brand-name">RingBulletin</span> is a decentralized content aggregation network built around a federated bulletin
     board model. Every user hosts a small <code class="inline">board.json</code>
     file that points to an RSS feed and a list of peers — ringbulletin follows
     those links outward, ring by ring, to assemble one shared board out of many
@@ -224,15 +203,15 @@
 
   <!-- signature: recursive peer discovery, drawn literally as rings -->
   <div class="rings-wrap">
-    <svg width="420" height="300" viewBox="0 0 420 260" role="img" aria-labelledby="ringsTitle ringsDesc">
+    <svg width="420" height="260" viewBox="0 0 420 260" role="img" aria-labelledby="ringsTitle ringsDesc">
       <title id="ringsTitle">Recursive peer discovery</title>
       <desc id="ringsDesc">Your board at the center, its peers on the first ring, and peers of peers on the second ring, connected by lines representing fetched feeds.</desc>
 
-      <circle cx="210" cy="150" r="60" fill="none" stroke="rgba(81,87,109,0.3)" stroke-dasharray="2 5"/>
-      <circle cx="210" cy="150" r="118" fill="none" stroke="rgba(81,87,109,0.2)" stroke-dasharray="2 5"/>
+      <circle cx="210" cy="150" r="60" fill="none" stroke="var(--color-border)" stroke-dasharray="2 5"/>
+      <circle cx="210" cy="150" r="118" fill="none" stroke="var(--color-border)" stroke-dasharray="2 5" opacity="0.7"/>
 
       <!-- depth 1 connections -->
-      <g stroke="var(--color-accent)" stroke-width="1" opacity="0.55">
+      <g stroke="var(--color-post-author)" stroke-width="1" opacity="0.65">
         <line x1="210" y1="150" x2="210" y2="90"/>
         <line x1="210" y1="150" x2="262" y2="120"/>
         <line x1="210" y1="150" x2="262" y2="180"/>
@@ -241,7 +220,7 @@
       </g>
 
       <!-- depth 2 connections, dimmer -->
-      <g stroke="rgba(81,87,109,0.5)" stroke-width="1">
+      <g stroke="var(--color-border)" stroke-width="1">
         <line x1="210" y1="90" x2="210" y2="32"/>
         <line x1="210" y1="90" x2="266" y2="58"/>
         <line x1="262" y1="120" x2="318" y2="96"/>
@@ -251,7 +230,7 @@
       </g>
 
       <!-- depth 2 nodes -->
-      <g fill="rgba(199,197,194,0.35)">
+      <g fill="var(--color-border)">
         <circle cx="210" cy="32" r="5"/>
         <circle cx="266" cy="58" r="5"/>
         <circle cx="318" cy="96" r="5"/>
@@ -261,7 +240,7 @@
       </g>
 
       <!-- depth 1 nodes -->
-      <g fill="var(--color-post-title)">
+      <g fill="var(--color-post-author)">
         <circle cx="210" cy="90" r="7"/>
         <circle cx="262" cy="120" r="7"/>
         <circle cx="262" cy="180" r="7"/>
@@ -270,19 +249,19 @@
       </g>
 
       <!-- center: your board -->
-      <circle cx="210" cy="150" r="13" fill="var(--color-accent)"/>
+      <circle cx="210" cy="150" r="13" fill="var(--color-post-title)"/>
       <circle cx="210" cy="150" r="13" fill="none" stroke="var(--color-bg)" stroke-width="2"/>
     </svg>
   </div>
   <div class="rings-caption">
-    <span><span class="dot" style="background-color: var(--color-accent);"></span>depth 0 — your board</span>
-    <span><span class="dot" style="background-color: var(--color-post-title);"></span>depth 1 — your peers</span>
-    <span><span class="dot" style="background-color: rgba(199,197,194,0.5);"></span>depth 2 — their peers</span>
+    <span><span class="dot" style="background-color: var(--color-post-title);"></span>depth 0 — your board</span>
+    <span><span class="dot" style="background-color: var(--color-post-author);"></span>depth 1 — your peers</span>
+    <span><span class="dot" style="background-color: var(--color-border);"></span>depth 2 — their peers</span>
   </div>
 
   <section class="block">
     <h2>How it works</h2>
-    <ol class="steps">
+    <div class="steps">
       <li>
         <span class="num">01</span>
         <span class="step-body">
@@ -304,7 +283,7 @@
           <span>Every fetched post lands in one place, ready to read locally or serve on the web.</span>
         </span>
       </li>
-    </ol>
+    </div>
   </section>
 
   <section class="block">

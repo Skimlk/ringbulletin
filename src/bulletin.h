@@ -9,11 +9,13 @@
 typedef struct {
 	char *title;
 	char *link;
+	char *domain;
 	char *description;
 	XXH64_hash_t normalizedTitleHash;
 	char *normalizedTitleHashString;
 	time_t pubDateUnix;
 	char *pubDateFormattedString;
+	char *iconPath;
 } PostData;
 
 extern PostData *initalizePost();

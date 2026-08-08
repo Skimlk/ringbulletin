@@ -13,6 +13,11 @@ typedef struct Context Context;
 #define URL_MAX 2048
 
 typedef struct {
+    char *content;
+    size_t size;
+} File;
+
+typedef struct {
     int numberOfFiles;
 	char **filenames;
 } FilenameList;
@@ -24,12 +29,14 @@ typedef struct {
     void *seed;
 } Pattern;
 
-extern char *readFile(const char *directory, const char *filename);
+extern File readFile(const char *directory, const char *filename);
+extern char *readFileStr(const char *directory, const char *filename);
 extern int writeFile(const char *content, const int *size, const char *directory, const char *filename);
 extern int copyFile(const char *sourceDirectory, const char *sourceFilename,
     const char *destinationDirectory, const char *destinationFilename);
 extern int removeFile(const char *directory, const char *filename);
 extern int directoryExists(const char *directory);
+int createDirectory(char *path);
 
 extern cJSON *loadJson(const char *directory, const char *path);
 extern int writeJson(const cJSON *json, const char *directory, const char *path);
