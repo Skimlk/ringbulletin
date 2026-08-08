@@ -1,5 +1,5 @@
 CC ?= gcc
-CFLAGS ?= -Wall -Wextra -I/usr/include/libxml2/
+CFLAGS ?= -Wall -Wextra -g -O0 -I/usr/include/libxml2/
 SRC := $(wildcard src/*.c)
 OBJ := $(SRC:.c=.o)
 
