@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include "fileutils.h"
+#include "filesystem.h"
 
 typedef struct {
 	char boardGenerationUrl[URL_MAX];

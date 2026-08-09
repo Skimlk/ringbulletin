@@ -1,10 +1,8 @@
-#ifndef BULLETIN_H
-#define BULLETIN_H
+#ifndef POST_H
+#define POST_H
 
 #include <time.h>
 #include "xxhash.h"
-
-#include "context.h"
 
 typedef struct {
 	char *title;
@@ -21,7 +19,5 @@ typedef struct {
 extern PostData *initalizePost();
 extern void copyPostData(PostData *newPost, PostData *originalPost);
 extern void freePostData(PostData *post);
-extern int writeBulletin();
-extern void processPost(PostData *post, Context *ctx);
 
 #endif

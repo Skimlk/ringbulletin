@@ -1,59 +1,13 @@
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <stdint.h>
-#include <dirent.h>
-#include <inttypes.h>
-#include <stdbool.h>
 
 #include <libxml/HTMLtree.h>
 #include <libxml/xpath.h>
-#include "xxhash.h"
 
-#include "bulletin.h"
-#include "fileutils.h"
-#include "stringutils.h"
-#include "context.h"
-#include "xmlutils.h"
-
-PostData *initalizePost() {
-    PostData *post = malloc(sizeof(PostData));
-   
-    post->title = NULL;
-    post->link = NULL;
-    post->domain = NULL;
-    post->description = NULL;
-    post->normalizedTitleHashString = NULL;
-    post->pubDateFormattedString = NULL;
-    post->iconPath = NULL;
-    
-    return post;
-}
-
-void copyPostData(PostData *newPost, PostData *originalPost) {
-    newPost->title = strdup(originalPost->title);
-    newPost->link = strdup(originalPost->link);
-	newPost->domain = strdup(originalPost->domain);
-	newPost->description = strdup(originalPost->description);
-	newPost->normalizedTitleHash = originalPost->normalizedTitleHash;
-	newPost->normalizedTitleHashString = strdup(originalPost->normalizedTitleHashString);
-	newPost->pubDateUnix = originalPost->pubDateUnix;
-	newPost->pubDateFormattedString = strdup(originalPost->pubDateFormattedString);
-    newPost->iconPath = strdup(originalPost->iconPath);
-}
-
-void freePostData(PostData *post) {
-    free(post->title);
-    free(post->link);
-    free(post->domain);
-    free(post->description);
-    free(post->normalizedTitleHashString);
-    free(post->pubDateFormattedString);
-    free(post->iconPath);
-    free(post);
-}
+#include "filesystem.h"
+#include "render.h"
+#include "post.h"
+#include "timeutils.h"
 
 xmlXPathObjectPtr getXPathObjectFromXPath(htmlDocPtr doc, char *xPathStr) {
     xmlXPathContextPtr ctx = xmlXPathNewContext(doc);
@@ -74,28 +28,57 @@ xmlNodePtr getNodePtrFromXPath(htmlDocPtr doc, char *xPathStr) {
     return result;
 } 
 
-int writePost(char *directory, htmlDocPtr postDoc, time_t postTimestamp, XXH64_hash_t postHash) {
-    int ret = 0;
-    xmlChar *postCharBuffer = NULL;
+xmlNodePtr addElement(xmlNodePtr parent, const char *tag, const char *text, const char *id, const char *class) {
+    xmlNodePtr node;
     
-    char filename[PATH_MAX];
-    snprintf(filename, sizeof(filename), "%lld_%016" PRIx64 ".html",
-        (long long) postTimestamp, postHash);
+    if (parent == NULL)
+        node = xmlNewNode(NULL, BAD_CAST tag);
+    else
+        node = xmlNewChild(parent, NULL, BAD_CAST tag, NULL);
 
-    int size = 0;
-    htmlDocDumpMemoryFormat(postDoc, &postCharBuffer, &size, 0);
-
-    if(!postCharBuffer) {
-        printf("Post was not serialized\n");
-        ret = 1;
-        goto cleanup;
+    if (text) {
+        xmlNodeSetContent(node, BAD_CAST text);
     }
+    
+    if (id)
+        xmlNewProp(node, BAD_CAST "id", BAD_CAST id);
+    
+    if (class)
+        xmlNewProp(node, BAD_CAST "class", BAD_CAST class);
+    
+    return node;
+}
 
-    writeFile((const char *)postCharBuffer, &size, directory, filename);
+void addStyle(xmlNodePtr head, const char *stylePath) {
+    xmlNodePtr link = xmlNewChild(head, NULL, BAD_CAST "link", NULL);
+    xmlNewProp(link, BAD_CAST "rel", BAD_CAST "stylesheet");
+    xmlNewProp(link, BAD_CAST "type", BAD_CAST "text/css");
+    xmlNewProp(link, BAD_CAST "href", BAD_CAST stylePath);
+}
 
-cleanup:
-    xmlFree(postCharBuffer);
-    return ret;
+void addNavbarButton(xmlNodePtr parent, char *linkPath, char *iconId) {
+    xmlNodePtr navbarButton = addElement(parent, "a", NULL, NULL, "navbar-button");
+        xmlNewProp(navbarButton, BAD_CAST "href", BAD_CAST linkPath);
+        xmlNewProp(navbarButton, BAD_CAST "target", BAD_CAST "content-iframe");
+
+        addElement(navbarButton, "img", NULL, iconId, "navbar-button-icon");
+}
+
+xmlNodePtr createPostElement(xmlNodePtr parent, const PostData *post, const char *class) {
+    xmlNodePtr postElement = addElement(parent, "div", NULL, NULL, class);
+        xmlNodePtr icon = addElement(postElement, "img", NULL, NULL, "post-icon");
+                xmlNewProp(icon, BAD_CAST "src", BAD_CAST post->iconPath);
+        xmlNodePtr postHeader = addElement(postElement, "div", NULL, NULL, "post-header");
+            xmlNodePtr postTitle = addElement(postHeader, "span", NULL, NULL, "post-title"); 
+                xmlNodePtr postLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST post->title);
+                    xmlNewProp(postLink, BAD_CAST "href", BAD_CAST post->link);
+                    xmlNewProp(postLink, BAD_CAST "target", BAD_CAST "_blank");
+            addElement(postHeader, "span", post->domain, NULL, "post-url");
+            addElement(postHeader, "span", post->pubDateFormattedString, NULL, "post-date");
+        
+        addElement(postElement, "blockquote", post->description, NULL, "post-description");
+
+    return postElement;
 }
 
 xmlNodePtr generateThread(xmlNodePtr parent, xmlNodePtr openingPost, xmlNodeSetPtr replies) {
@@ -113,66 +96,6 @@ xmlNodePtr generateThread(xmlNodePtr parent, xmlNodePtr openingPost, xmlNodeSetP
     return thread;
 }
 
-void processPost(PostData *post, Context *ctx) {
-    FilenameList *existingPostsWithHash 
-        = getFilenameListMatchingPattern(ctx->postsDirectoryPath, contains, (void *)post->normalizedTitleHashString);
-    char *existingPostWithHashContent = NULL;
-    htmlDocPtr existingPostWithHashDoc = NULL;
-    htmlDocPtr newPostDoc = NULL;
-    time_t existingPostWithHashTime;
-
-    bool hasExistingPost = existingPostsWithHash->numberOfFiles > 0;
-    if(hasExistingPost) {
-        existingPostWithHashTime = extractTimeFromFilename(existingPostsWithHash->filenames[0]);
-        existingPostWithHashContent = readFileStr(ctx->postsDirectoryPath, existingPostsWithHash->filenames[0]);
-        existingPostWithHashDoc = htmlReadMemory(existingPostWithHashContent,
-            strlen(existingPostWithHashContent), NULL, "UTF-8", HTML_PARSE_NOBLANKS);
-    }
-
-    if (!hasExistingPost || post->pubDateUnix < existingPostWithHashTime) {
-        newPostDoc = htmlNewDoc(NULL, NULL);
-        xmlNodePtr html = xmlNewNode(NULL, BAD_CAST "html");
-        xmlDocSetRootElement(newPostDoc, html);
-        
-        xmlNodePtr head = xmlNewChild(html, NULL, BAD_CAST "head", NULL);
-            addStyle(head, "../css/board.css");  
-            addStyle(head, "../css/theme.css");
-
-        //If the existing post has a later date, add the existing post content
-        //to this post and overwrite the existing post with this
-
-        xmlNodeSetPtr replies = NULL;
-        xmlXPathObjectPtr repliesObject = NULL;
-        if (hasExistingPost) {
-            repliesObject = getXPathObjectFromXPath(
-                existingPostWithHashDoc, "//*[@class='post'] | //*[@class='replies']/*");
-            replies = repliesObject->nodesetval;
-
-            removeFile(ctx->postsDirectoryPath, existingPostsWithHash->filenames[0]);
-        }
-
-        xmlNodePtr body = xmlNewChild(html, NULL, BAD_CAST "body", NULL);
-            generateThread(body, createPostElement(NULL, post, "post"), replies);
-
-        xmlXPathFreeObject(repliesObject);
-        writePost(ctx->postsDirectoryPath, newPostDoc, post->pubDateUnix, post->normalizedTitleHash);
-    }
-
-    //If the existing post has an earlier date, add this post's content
-    //to the existing post
-    else {
-        createPostElement(getNodePtrFromXPath(existingPostWithHashDoc, "//*[@class='replies']"), post, "reply");
-        writePost(ctx->postsDirectoryPath, existingPostWithHashDoc, existingPostWithHashTime, post->normalizedTitleHash);
-    } 
-
-    xmlFreeDoc(newPostDoc);
-    xmlFreeDoc(existingPostWithHashDoc);
-    free(existingPostWithHashContent);
-    freeFilenameList(existingPostsWithHash);
-}
-
-//Change this writeListItem to copy whole threads but just alter the posts in them
-//Rather than copying posts and threads indvidually
 void writeListItem(Context *ctx, xmlNodePtr list, char *postFilename) {
     char *itemRelativePath = NULL;
     char *itemFullPath = NULL;

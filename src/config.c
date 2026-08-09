@@ -3,7 +3,7 @@
 #include <cjson/cJSON.h>
 
 #include "config.h"
-#include "fileutils.h"
+#include "json.h"
 
 int loadIntValue(int *configValue, const cJSON *configJson, const char *key) {
 	const cJSON *value = cJSON_GetObjectItemCaseSensitive(configJson, key);
