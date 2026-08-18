@@ -17,16 +17,18 @@ struct memory {
 
 static size_t writeMemory(char *contents, size_t size, size_t nmemb, void *userp) {
 	struct memory *mem = userp;
-	char *ptr = realloc(mem->memory, mem->size + size * nmemb + 1);	
+	size_t total = size * nmemb;
+
+	char *ptr = realloc(mem->memory, mem->size + total + 1);	
 	if(!ptr) {
-		printf("not enough memory (realloc returned NULL)\n");
+		printf("Not enough memory.\n");
 		return 0;
 	}
 	mem->memory = ptr;
-	memcpy(&(mem->memory[mem->size]), contents, nmemb);
-	mem->size += nmemb;
+	memcpy(&(mem->memory[mem->size]), contents, total);
+	mem->size += total;
 	mem->memory[mem->size] = 0;
-	return nmemb;	
+	return total;	
 }
 
 char *fetch(char *URL) {
