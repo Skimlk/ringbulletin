@@ -12,6 +12,10 @@ char *getInput() {
 	size_t size = 0;
 	if(getline(&input, &size, stdin) == -1) {
 		free(input);
+
+		if(feof(stdin))
+			clearerr(stdin);
+		
 		return NULL;
 	}
 

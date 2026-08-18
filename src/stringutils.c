@@ -6,7 +6,7 @@
 #include "stringutils.h"
 
 bool isNumber(char *string) {
-	if(string[0] == '\0')
+	if(string == NULL || string[0] == '\0')
 		return false;
 
 	for(char *ch = string; *ch != '\0'; ch++) {

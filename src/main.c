@@ -133,8 +133,7 @@ int regenerate() {
 
 int listArrayOperation(cJSON *propertyJson) {
 	printJsonArray(propertyJson);
-
-	return 1;
+	return 0;
 }
 
 int addArrayOperation(cJSON *propertyJson, char **argv, int argc, int cur) {
@@ -144,7 +143,7 @@ int addArrayOperation(cJSON *propertyJson, char **argv, int argc, int cur) {
 	}
 
 	for(int i = cur; i < argc; i++)
-		addStringToJsonItem(propertyJson, NULL, strlwr(argv[i]));
+		addStringToJsonItem(propertyJson, NULL, argv[i]);
 
 	return 0;
 }
@@ -156,13 +155,13 @@ int removeArrayOperation(cJSON *propertyJson, char **argv, int argc, int cur) {
 	}
 
 	for(int i = cur; i < argc; i++)
-		removeStringFromJsonArray(propertyJson, strlwr(argv[i]));
+		removeStringFromJsonArray(propertyJson, argv[i]);
 
 	return 0;
 }
 
 int arrayOperation(char *file, char *property, char **argv, int argc, int cur) {
-	int ret = 0;
+	int ret = 1;
 
 	typedef struct { char *name; int (*function)(); } Command;
 	Command commands[] = {
@@ -174,10 +173,8 @@ int arrayOperation(char *file, char *property, char **argv, int argc, int cur) {
 	size_t commandStructSize = sizeof(Command);
 	size_t commandCount = sizeof(commands)/commandStructSize;
 
-	if(cur > argc-1) {
-		ret = 1;
+	if(cur > argc-1)
 		goto cleanup;
-	}
 
 	for(size_t i = 0; i < commandCount; i++) {
 		if(strcmp(strlwr(argv[cur]), commands[i].name) == 0) {
@@ -192,7 +189,7 @@ int arrayOperation(char *file, char *property, char **argv, int argc, int cur) {
 			ret = commands[i].function(propertyJson, argv, argc, ++cur);
 			writeJson(fileJson, NULL, file);
 
-			cJSON_free(fileJson);
+			cJSON_Delete(fileJson);
 			return ret;
 		}
 	}
@@ -227,7 +224,7 @@ int init(char **argv) {
 		free(theme);
 	
 		writeJson(configJson, NULL, CONFIG_JSON_PATH);
-		cJSON_free(configJson);
+		cJSON_Delete(configJson);
 	}
 
 	bool generateBoard = true;
@@ -244,7 +241,7 @@ int init(char **argv) {
 		cJSON_AddItemToObject(boardJson, "peers", cJSON_CreateArray());
 		cJSON_AddItemToObject(boardJson, "feeds", cJSON_CreateArray());
 		writeJson(boardJson, NULL, BOARD_JSON_PATH);
-		cJSON_free(boardJson);
+		cJSON_Delete(boardJson);
 
 		char *peerArgs = stringInputPrompt("Enter peer board.json URLs separated by spaces", "");
 		char *addPeerArgCommand = NULL;
@@ -298,7 +295,7 @@ int setTitle(char **argv, int argc, int cur) {
 	replaceJsonValue(fileJson, "title", title, addStringToJsonItem);
 	writeJson(fileJson, NULL, BOARD_JSON_PATH);
 
-	cJSON_free(fileJson);
+	cJSON_Delete(fileJson);
 	return 0;
 }
 
