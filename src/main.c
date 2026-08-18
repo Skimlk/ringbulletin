@@ -9,7 +9,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <time.h>
 
 #include <cjson/cJSON.h>
@@ -25,25 +24,48 @@
 
 #define CONFIG_JSON_PATH "config.json"
 #define BOARD_JSON_PATH "board.json"
+#define ANSI_BOLD "\033[1m"
+#define ANSI_BOLD_UNDERLINE "\033[1;4m"
+#define ANSI_RESET "\033[0m"
+
+typedef struct {
+	char *name;
+	int (*function)();
+	char *description;
+} Command;
 
 void printInitMessage(char *filename) {
 	printf("'%s' does not exist. Run 'ringbulletin init' to generate it.\n", filename);
 }
 
 void printUsage(int cur, char **argv, char *argName) {
-	printf("Usage: ");
+	printf(ANSI_BOLD_UNDERLINE "Usage:" ANSI_RESET " ");
 	for(int i = 0; i < cur; i++) {
 		printf("%s ", argv[i]);
 	}
 	printf("<%s>\n", argName);
 }
 
-void printUsageCommands(int cur, char **argv, void *commands, size_t commandCount, size_t commandStructSize) {
+void printUsageCommands(int cur, char **argv, Command *commands, size_t commandCount) {
 	printUsage(cur, argv, "command");
-	
-	printf("\nCommands:\n");
-	for(size_t i = 0; i < commandCount; i++)
-		printf("%s\n", *(char **)((uintptr_t)commands + (i * commandStructSize)));
+
+	printf("\n" ANSI_BOLD_UNDERLINE "Commands:" ANSI_RESET "\n");
+	size_t commandNameWidth = 0;
+	for(size_t i = 0; i < commandCount; i++) {
+		size_t commandNameLength = strlen(commands[i].name);
+		if(commandNameLength > commandNameWidth)
+			commandNameWidth = commandNameLength;
+	}
+
+	for(size_t i = 0; i < commandCount; i++) {
+		if(commands[i].description) {
+			printf("  " ANSI_BOLD "%-*s" ANSI_RESET "  %s\n",
+				(int)commandNameWidth,
+				commands[i].name,
+				commands[i].description);
+		} else
+			printf("  " ANSI_BOLD "%s" ANSI_RESET "\n", commands[i].name);
+	}
 }
 
 int generateBoard(int regenerateFlag) {
@@ -163,15 +185,13 @@ int removeArrayOperation(cJSON *propertyJson, char **argv, int argc, int cur) {
 int arrayOperation(char *file, char *property, char **argv, int argc, int cur) {
 	int ret = 1;
 
-	typedef struct { char *name; int (*function)(); } Command;
 	Command commands[] = {
-		{"list", listArrayOperation},
-		{"add", addArrayOperation},
-		{"remove", removeArrayOperation}
+		{"list", listArrayOperation, NULL},
+		{"add", addArrayOperation, NULL},
+		{"remove", removeArrayOperation, NULL}
 	};
 
-	size_t commandStructSize = sizeof(Command);
-	size_t commandCount = sizeof(commands)/commandStructSize;
+	size_t commandCount = sizeof(commands)/sizeof(Command);
 
 	if(cur > argc-1)
 		goto cleanup;
@@ -195,7 +215,7 @@ int arrayOperation(char *file, char *property, char **argv, int argc, int cur) {
 	}
 
 cleanup:
-	printUsageCommands(cur, argv, (void *)commands, commandCount, commandStructSize);
+	printUsageCommands(cur, argv, commands, commandCount);
 	return ret;
 }
 
@@ -269,35 +289,37 @@ int feed(char **argv, int argc, int cur) {
 	return arrayOperation(BOARD_JSON_PATH, "feeds", argv, argc, cur);
 }
 
-int setTitle(char **argv, int argc, int cur) {
+int setValue(char *jsonPath, char *valueTitle, char **argv, int argc, int cur) {
 	if(cur == argc) {
-		printUsage(cur, argv, "title");
+		printUsage(cur, argv, valueTitle);
 		return 1;
 	}
 
-	cJSON *fileJson = loadJson(NULL, BOARD_JSON_PATH);
-	if(!fileJson) {
-		printInitMessage(BOARD_JSON_PATH);
+	cjson *filejson = loadjson(null, jsonpath);
+	if(!filejson) {
+		printinitmessage(jsonpath);
 		return 1;
 	}
 
-	int titleLength = 0;
+	int valuelength = 0;
 	for(int i = cur; i < argc; i++)
-		titleLength += strlen(argv[i]) + 1;
+		valuelength += strlen(argv[i]) + 1;
 
-	char title[titleLength];
-	char *titleCur = title;
+	char value[valuelength];
+	char *valuecur = value;
 	for(int i = cur; i < argc; i++)
-		titleCur += sprintf(titleCur, "%s ", argv[i]);
+		valuecur += sprintf(valuecur, "%s ", argv[i]);
 
-	title[titleLength-1] = '\0';
+	title[titlelength-1] = '\0';
 
-	replaceJsonValue(fileJson, "title", title, addStringToJsonItem);
-	writeJson(fileJson, NULL, BOARD_JSON_PATH);
+	replacejsonvalue(filejson, valuetitle, title, addstringtojsonitem);
+	writejson(filejson, null, jsonpath);
 
-	cJSON_Delete(fileJson);
+	cjson_delete(filejson);
 	return 0;
 }
+
+int setTitle(char **argv, int argc, int cur) { setvalue(board_json_path, "title", argv, argc, cur); }
 
 int main(int argc, char **argv) {
 	if(argc == 1) {
@@ -305,17 +327,14 @@ int main(int argc, char **argv) {
 		return generateBoard(shouldRegenerate);
 	}
 
-	typedef struct { char *name; int (*function)(); } Command;
 	Command commands[] = {
-		{"regenerate", regenerate},
-		{"init", init},
-		{"peer", peer},
-		{"feed", feed},
-		{"set-title", setTitle},
+		{"regenerate", regenerate, "Regenerate the board from scratch"},
+		{"init", init, "Create the configuration and board files"},
+		{"peer", peer, "Manage peer board URLs"},
+		{"feed", feed, "Manage RSS feed URLs"},
 	};
 
-	size_t commandStructSize = sizeof(Command);
-	size_t commandCount = sizeof(commands)/commandStructSize;
+	size_t commandCount = sizeof(commands)/sizeof(Command);
 	int cur = 1;
 
 	for(size_t i = 0; i < commandCount; i++) {
@@ -324,7 +343,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	printUsageCommands(cur, argv, (void *)commands, commandCount, commandStructSize);
+	printUsageCommands(cur, argv, commands, commandCount);
 
 	return 1;
 }
