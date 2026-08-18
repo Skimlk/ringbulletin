@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
-#include <ctype.h>
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -13,61 +12,9 @@
 #include "crawler.h"
 #include "json.h"
 #include "post.h"
+#include "stringutils.h"
 #include "thread.h"
 #include "timeutils.h"
-
-char *strlwr(char *string) {
-	char *character = string;
-	while(*character != '\0') {
-		*character = tolower(*character);
-		character++;
-	}
-
-	return string;
-}
-
-char *removeReplyPrefix(char *string) {
-	char *replyPrefix = "re:";
-	int replyPrefixLength = strlen(replyPrefix);
-
-	char *replyPrefixLocation = strstr(string, replyPrefix);
-	if (!replyPrefixLocation) { 
-		return string;
-	}
-
-	int indexOfOriginalTitle = (replyPrefixLocation - string) + replyPrefixLength;
-
-	size_t stringLength = strlen(string);
-	size_t i;
-	for(i = indexOfOriginalTitle; i < stringLength; i++) {
-		string[i - indexOfOriginalTitle] = string[i];
-	}
-
-	string[i - indexOfOriginalTitle] = '\0';
-
-	return string;	
-}
-
-char *strip(char *string) {
-	int write = 0;
-	for(int read = 0; string[read] != '\0'; read++) {
-		char c = string[read];
-		if((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
-			string[write++] = c;
-	}
-
-	string[write] = '\0';
-
-	return string;
-}
-
-char *normalize(char *string) {
-	return strip(
-		removeReplyPrefix(
-			strlwr(string)
-		)
-	);
-}
 
 int feedIsValid(xmlDocPtr doc) {
 	xmlNodePtr root = xmlDocGetRootElement(doc);
@@ -209,9 +156,9 @@ int processFeed(char *feed, Context *ctx, char *url) {
 		}
 	}
 
-	updateJsonHistoryItemProperty("feeds", url, "lastSearchedPostTitleHash", latestPost->normalizedTitleHashString, addStringToJsonHistoryItem);
+	updateJsonHistoryItemProperty("feeds", url, "lastSearchedPostTitleHash", latestPost->normalizedTitleHashString, addStringToJsonItem);
 	double pubDateUnixDoubleHelper = (double)latestPost->pubDateUnix;
-	updateJsonHistoryItemProperty("feeds", url, "lastSearchedPostDate", &pubDateUnixDoubleHelper, addDoubleToJsonHistoryItem);
+	updateJsonHistoryItemProperty("feeds", url, "lastSearchedPostDate", &pubDateUnixDoubleHelper, addDoubleToJsonItem);
 
 cleanup:
 	xmlXPathFreeObject(itemNodes);

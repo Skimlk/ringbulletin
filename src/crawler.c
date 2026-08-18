@@ -144,7 +144,7 @@ int searchedAlready(Context *ctx, const char *categoryString, const char *itemSt
 		|| lastSearched < ctx->searchStartTime
 	) {
 		double now = (double)ctx->searchStartTime;
-		updateJsonHistoryItemProperty(categoryString, itemString, "lastSearched", &now, addDoubleToJsonHistoryItem);
+		updateJsonHistoryItemProperty(categoryString, itemString, "lastSearched", &now, addDoubleToJsonItem);
 		return 0;
 	}
 

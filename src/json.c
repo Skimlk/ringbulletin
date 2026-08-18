@@ -17,16 +17,8 @@ cJSON *loadJson(const char *directory, const char *path) {
 
 	cJSON *json = cJSON_Parse(fileContents);
 
-	if(!json) {
-		const char *errorMsg = cJSON_GetErrorPtr();
-		if(errorMsg && *errorMsg != '\0') {
-			fprintf(stderr, "JSON parse error before: %.100s\n", errorMsg);
-		} else {
-			fprintf(stderr, "JSON parse error: unknown location\n");
-		}
-
+	if(!json)
 		goto cleanup;
-	}
 
 	ret = json;
 
@@ -86,15 +78,55 @@ cleanup:
 	return ret;
 }
 
-CJSON_PUBLIC(cJSON*) addStringToJsonHistoryItem(cJSON *itemJson, const char *stringName, void *string) {
-	return cJSON_AddStringToObject((cJSON * const)itemJson, stringName, (const char *)string);
+void removeStringFromJsonArray(cJSON *arrayJson, const char *string) {
+	cJSON *stringJson = NULL;
+	cJSON_ArrayForEach(stringJson, arrayJson) {
+		if(strcmp(stringJson->valuestring, string) == 0) {
+			cJSON emptyJsonWithNextItem;
+			emptyJsonWithNextItem.next = stringJson->next;
+			cJSON_Delete(cJSON_DetachItemViaPointer(arrayJson, stringJson));
+			stringJson = &emptyJsonWithNextItem;
+		}
+	}
 }
 
-CJSON_PUBLIC(cJSON*) addDoubleToJsonHistoryItem(cJSON *itemJson, const char *numberName, void *number) {
-	return cJSON_AddNumberToObject((cJSON * const)itemJson, numberName, *(const double *)number);
+void addStringToJsonItem(cJSON *itemJson, const char *stringName, void *string) {
+	if(stringName == NULL) {
+		removeStringFromJsonArray(itemJson, string);
+		cJSON_AddItemToArray(itemJson, cJSON_CreateString((const char *)string));
+		return;
+	}
+
+	cJSON_AddStringToObject(itemJson, stringName, (const char *)string);
 }
 
-void updateJsonHistoryItemProperty(const char *categoryString, const char *itemString, const char *propertyName, void *property, CJSON_PUBLIC(cJSON*) (*addPropertyToItem)(cJSON *, const char *, void *)) {
+void addDoubleToJsonItem(cJSON *itemJson, const char *numberName, void *number) {
+	if(numberName == NULL) {
+		cJSON_AddItemToArray(itemJson, cJSON_CreateNumber(*(const double *)number));
+		return;
+	}
+
+	cJSON_AddNumberToObject(itemJson, numberName, *(const double *)number);
+}
+
+void printJsonArray(cJSON *arrayJson) {
+	cJSON *item = NULL;
+	cJSON_ArrayForEach(item, arrayJson) {
+		if (cJSON_IsString(item)) {
+            printf("%s\n", item->valuestring);
+        }
+		else if (cJSON_IsNumber(item)) {
+            printf("%f\n", item->valuedouble);
+        }
+	}
+}
+
+void replaceJsonValue(cJSON *itemJson, char *propertyName, char *propertyText, void (*addPropertyToItem)(cJSON *, const char *, void *)) {
+	cJSON_DeleteItemFromObjectCaseSensitive(itemJson, propertyName);
+	addPropertyToItem(itemJson, propertyName, propertyText);
+}
+
+void updateJsonHistoryItemProperty(const char *categoryString, const char *itemString, const char *propertyName, void *property, void (*addPropertyToItem)(cJSON *, const char *, void *)) {
 	cJSON *history = loadJson(NULL, "./history.json");
 	if (history == NULL) history = cJSON_CreateObject();
 
@@ -110,8 +142,7 @@ void updateJsonHistoryItemProperty(const char *categoryString, const char *itemS
 		cJSON_AddItemToObject(categoryJson, itemString, itemJson);
 	}
 
-	cJSON_DeleteItemFromObjectCaseSensitive(itemJson, propertyName);
-	addPropertyToItem(itemJson, propertyName, property);
+	replaceJsonValue(itemJson, propertyName, property, addPropertyToItem);
 	
 	writeJson(history, NULL, "./history.json");
 	cJSON_Delete(history);

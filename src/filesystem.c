@@ -10,8 +10,6 @@
 
 #include "filesystem.h"
 
-#define UNUSED(x) (void)(x)
-
 int invalidFilename(const char *filename) {
 	if(strlen(filename) >= BASE_NAME_MAX) {
 		fprintf(stderr, "Filename '%s' is too long.\n", filename);
@@ -156,6 +154,15 @@ int removeFile(const char *directory, const char *filename) {
 	return 0;
 }
 
+int fileExists(const char *filename) {
+	struct stat st;
+	if(stat(filename, &st) == 0) {
+		return 1;
+	}
+	
+	return 0;
+}
+
 int directoryExists(const char *directoryPath) {
 	DIR *directory = opendir(directoryPath);
 	if(directory != NULL) {
@@ -231,13 +238,13 @@ int processFiles(char *path, int (*process)(void *, struct dirent *, int), void 
 }
 
 int count(int *counter, struct dirent *unusedDirent, int count) {
-	UNUSED(unusedDirent);
+	(void)unusedDirent;
 	*counter = count + 1;
 	return 0;
 }
 
 int removeCallback(char *directory, struct dirent *file, int count) {
-	UNUSED(count);
+	(void)count;
 	removeFile(directory, file->d_name);
 	return 0;
 }
@@ -300,8 +307,8 @@ int contains(void *string, void *substring) {
 }
 
 int alwaysTrue(void *unusedPattern, void *unusedSeed) {
-	UNUSED(unusedPattern);
-	UNUSED(unusedSeed);
+	(void)unusedPattern;
+	(void)unusedSeed;
 	return 1;
 }
 

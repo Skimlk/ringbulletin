@@ -32,6 +32,7 @@ extern int writeFile(const char *content, const int *size, const char *directory
 extern int copyFile(const char *sourceDirectory, const char *sourceFilename,
     const char *destinationDirectory, const char *destinationFilename);
 extern int removeFile(const char *directory, const char *filename);
+extern int fileExists(const char *filename);
 extern int directoryExists(const char *directory);
 int createDirectory(char *path);
 extern void recursiveDirectoryCopy(char *srcDir, char *destDir, FilenameList *excludedSrcDirs);
