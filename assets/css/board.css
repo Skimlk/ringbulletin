@@ -422,7 +422,9 @@ hr {
 
 .connect-url {
     min-height: 36px;
+    field-sizing: content;
     resize: none;
+    overflow-y: hidden;
 }
 
 .connect-snippet {

@@ -180,42 +180,16 @@ void writeConnectPage(Context *ctx) {
 			xmlNodePtr intro = addElement(board, "div", NULL, NULL, "connect-section");
 				addElement(intro, "div", "Connect with this Board", NULL, "post-title");
 				addElement(intro, "div", "Add this RingBulletin board to your network and start discovering federated content.", NULL, "connect-copy");
-				addElement(intro, "div", "Board URL:", NULL, "connect-label");
+				addElement(intro, "div", "Command:", NULL, "connect-label");
 
-				xmlNodePtr boardUrl = addElement(intro, "textarea", ctx->boardJsonUrl, NULL, "connect-textarea connect-url");
+                char *addPeerCommand = NULL;
+				asprintf(&addPeerCommand, "./ringbulletin peer add %s", ctx->boardJsonUrl);
+
+				xmlNodePtr boardUrl = addElement(intro, "textarea", addPeerCommand, NULL, "connect-textarea connect-url");
 				xmlNewProp(boardUrl, BAD_CAST "readonly", BAD_CAST "readonly");
 				xmlNewProp(boardUrl, BAD_CAST "rows", BAD_CAST "1");
 
-			xmlNodePtr peers = addElement(board, "div", NULL, NULL, "connect-section");
-				addElement(peers, "div", "How to add this board to your peers", NULL, "post-title");
-                
-                xmlNodePtr desc = addElement(peers, "div", NULL, NULL, "connect-steps");
-                    addElement(desc, "div", "1. Copy the Board URL above.", NULL, NULL);
-                    addElement(desc, "div", "2. Open (or create) your \"board.json\" file.", NULL, NULL);
-                    addElement(desc, "div", "3. Add the URL to the \"peers\" array.", NULL, NULL);
-                    addElement(desc, "div", "4. Run RingBulletin — it will automatically fetch posts from this board and its network.", NULL, NULL);
-
-                addElement(peers, "div", "Example \"board.json\" snippet:", NULL, "connect-label");
-
-                char *snippetText = NULL;
-                asprintf(
-                    &snippetText,
-                    "{\n"
-                    "  \"title\": \"My Board\",\n"
-                    "  \"feeds\": [\"https://yoursite.com/feed.xml\"],\n"
-                    "  \"peers\": [\n"
-                    "    \"%s\",\n"
-                    "    \"...\"\n"
-                    "  ]\n"
-                    "}",
-                    ctx->boardJsonUrl
-                );
-
-                xmlNodePtr snippet = addElement(peers, "textarea", snippetText, NULL, "connect-textarea connect-snippet");
-                    xmlNewProp(snippet, BAD_CAST "readonly", BAD_CAST "readonly");
-                    xmlNewProp(snippet, BAD_CAST "rows", BAD_CAST "8");
-
-				free(snippetText);
+				free(addPeerCommand);
 
 			xmlNodePtr embed = addElement(board, "div", NULL, NULL, "connect-section");
 				addElement(embed, "div", "Embed this board on your website", NULL, "post-title");
