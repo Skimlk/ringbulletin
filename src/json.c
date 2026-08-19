@@ -126,7 +126,7 @@ void replaceJsonValue(cJSON *itemJson, char *propertyName, char *propertyText, v
 	addPropertyToItem(itemJson, propertyName, propertyText);
 }
 
-void updateJsonHistoryItemProperty(const char *categoryString, const char *itemString, const char *propertyName, void *property, void (*addPropertyToItem)(cJSON *, const char *, void *)) {
+void updateJsonHistoryItemProperty(const char *categoryString, const char *itemString, char *propertyName, void *property, void (*addPropertyToItem)(cJSON *, const char *, void *)) {
 	cJSON *history = loadJson(NULL, "./history.json");
 	if (history == NULL) history = cJSON_CreateObject();
 

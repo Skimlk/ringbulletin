@@ -13,6 +13,6 @@ extern void addDoubleToJsonItem(cJSON *itemJson, const char *numberName, void *n
 extern void printJsonArray(cJSON *listJson);
 extern void replaceJsonValue(cJSON *itemJson, char *propertyName, char *propertyText, void (*addPropertyToItem)(cJSON *, const char *, void *));
 extern void updateJsonHistoryItemProperty(const char *categoryString, const char *itemString,
-    const char *propertyName, void *property, void (*addPropertyToItem)(cJSON *, const char *, void *));
+    char *propertyName, void *property, void (*addPropertyToItem)(cJSON *, const char *, void *));
 
 #endif
