@@ -42,7 +42,9 @@ char *fetch(char *URL) {
 	curl_easy_setopt(handle, CURLOPT_URL, URL);
 	curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, writeMemory);
 	curl_easy_setopt(handle, CURLOPT_WRITEDATA, &chunk);
-	
+	curl_easy_setopt(handle, CURLOPT_PROTOCOLS_STR, "http,https");
+	curl_easy_setopt(handle, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
+
 	res = curl_easy_perform(handle);
 
 	if(res != CURLE_OK) {
