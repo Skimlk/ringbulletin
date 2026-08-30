@@ -133,11 +133,12 @@ int processFeed(char *feed, Context *ctx, char *url) {
 		for (xmlNodePtr child = itemNode->children; child != NULL; child = child->next)
 			hydratePostContent(doc, child, post);
 
-		char normalizedTitle[strlen(post->title)+1];
-		strcpy(normalizedTitle, post->title);
+		char *normalizedTitle = strdup(post->title);
 		normalize(normalizedTitle);
 	
 		post->normalizedTitleHash = XXH64(normalizedTitle, strlen(normalizedTitle), 0);
+		free(normalizedTitle);
+
 		int hashMaxLength = 17;
 		post->normalizedTitleHashString = malloc(sizeof(char) * hashMaxLength);
 		snprintf(post->normalizedTitleHashString, hashMaxLength, "%016" PRIx64, post->normalizedTitleHash);
