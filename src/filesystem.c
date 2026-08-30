@@ -177,7 +177,7 @@ int createDirectory(char *path) {
 	struct stat st = {0};
 
 	if (stat(path, &st) == -1) {
-		mkdir(path, 0755);
+		mkdir(path, 1000);
 		return 0;
 	}
 
