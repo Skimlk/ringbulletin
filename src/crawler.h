@@ -11,7 +11,6 @@ typedef struct Memory {
 } Memory;
 
 extern char *fetch(char *URL);
-extern Memory *fetchBinary(char *URL);
 extern Memory *fetchIcon(char *URL);
 extern char *getDomainFromLink(const char *link);
 extern char *getBaseUrlFromLink(const char *link);

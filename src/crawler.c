@@ -91,20 +91,6 @@ bool isBinary(Memory *memory) {
 	return memchr(memory->data, 0, memory->size) != NULL;
 }
 
-Memory *fetchBinary(char *URL) { 
-	Memory *memory = curl(URL, writeBinary);
-	if(memory == NULL)
-		return NULL;
-
-	if(!isBinary(memory)) {
-		free(memory->data);
-		free(memory);
-		return NULL;
-	}
-
-	return memory;
-}
-
 bool isIcon(Memory *memory) {
 	if( /* File signature for an ICO file */
 		memory->data[0] == 0x00 && 
@@ -119,11 +105,11 @@ bool isIcon(Memory *memory) {
 }
 
 Memory *fetchIcon(char *URL) {
-	Memory *binary = fetchBinary(URL);
+	Memory *binary = curl(URL, writeBinary);
 	if(binary == NULL)
 		return NULL;
 
-	if(!isIcon(binary)) {
+	if(!isBinary(binary) || !isIcon(binary)) {
 		free(binary->data);
 		free(binary);
 		return NULL;
