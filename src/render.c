@@ -196,21 +196,9 @@ void writeConnectPage(Context *ctx) {
 				addElement(embed, "div", "Embed this board on your website", NULL, "post-title");
 				addElement(embed, "div", "Display the full board directly on your site using this iframe:", NULL, "connect-copy");
 
-				char *iframeText = NULL;
-				asprintf(
-					&iframeText,
-					"<iframe style=\"height: 750px; width: 100%%;\"\n"
-					"    src=\"%s\"\n"
-					"    title=\"RingBulletin Board\" allowfullscreen>\n"
-					"</iframe>",
-					ctx->boardHtmlUrl
-				);
-
-				xmlNodePtr iframe = addElement(embed, "textarea", iframeText, NULL, "connect-textarea connect-embed");
+				xmlNodePtr iframe = addElement(embed, "textarea", ctx->iframeCode, NULL, "connect-textarea connect-embed");
                     xmlNewProp(iframe, BAD_CAST "readonly", BAD_CAST "readonly");
                     xmlNewProp(iframe, BAD_CAST "rows", BAD_CAST "4");
-
-				free(iframeText);
 
 	xmlChar *serialized = NULL;
 	int size = 0;

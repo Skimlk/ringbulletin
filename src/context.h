@@ -16,6 +16,7 @@ typedef struct Context {
 	char *cssDirectoryPath;
 	char *boardJsonUrl;
 	char *boardHtmlUrl;
+	char *iframeCode;
 } Context;
 
 #endif

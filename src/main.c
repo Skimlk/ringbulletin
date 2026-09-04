@@ -134,12 +134,23 @@ int generateBoard(int regenerateFlag) {
 	
 	copyFile(NULL, "./board.json", config.boardGenerationDirectory, "board.json");
 
+	asprintf(
+		&ctx.iframeCode,
+		"<iframe style=\"height: 650px; width: 100%%;\"\n"
+		"    src=\"%s\"\n"
+		"    title=\"RingBulletin Board\" allowfullscreen>\n"
+		"</iframe>",
+		ctx.boardHtmlUrl
+	);
+
 	searchedAlready(&ctx, "boards", ctx.boardJsonUrl);
 	searchBoard(boardJson, &ctx, 0);
 
 	writeBulletin(&ctx);
+	printf("\nTo to embed RingBulletin on your site, use this iframe:\n%s\n", ctx.iframeCode);
 
 cleanup:
+	free(ctx.iframeCode);
 	free(ctx.boardHtmlUrl);
 	free(ctx.boardJsonUrl);
 	free(ctx.postsDirectoryPath);
