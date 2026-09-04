@@ -203,59 +203,59 @@ char *getBaseUrlFromLink(const char *link) {
 
 int normalizeUrl(char **urlPtr) {
 	if (!urlPtr || !*urlPtr) {
-	        return 1;
-	    }
+		return 1;
+	}
 
-	    CURLU *urlHandle = curl_url();
-	    if (!urlHandle) {
-	        return 1;
-	    }
+	CURLU *urlHandle = curl_url();
+	if (!urlHandle) {
+		return 1;
+	}
 
-	    CURLUcode curlResultCode;
-	    char *normalizedUrl = NULL;
-	    char *path = NULL;
+	CURLUcode curlResultCode;
+	char *normalizedUrl = NULL;
+	char *path = NULL;
 
-	    char *fragment = strchr(*urlPtr, '#');
-	    if (fragment) {
-	        *fragment = '\0';
-	    }
+	char *fragment = strchr(*urlPtr, '#');
+	if (fragment) {
+		*fragment = '\0';
+	}
 
-	    curlResultCode = curl_url_set(urlHandle, CURLUPART_URL, *urlPtr, 0);
-	    if (curlResultCode != CURLUE_OK) {
-	        curl_url_cleanup(urlHandle);
-	        return 1;
-	    }
+	curlResultCode = curl_url_set(urlHandle, CURLUPART_URL, *urlPtr, 0);
+	if (curlResultCode != CURLUE_OK) {
+		curl_url_cleanup(urlHandle);
+		return 1;
+	}
 
-	    curl_url_set(urlHandle, CURLUPART_FRAGMENT, NULL, 0);
+	curl_url_set(urlHandle, CURLUPART_FRAGMENT, NULL, 0);
 
-	    if (curl_url_get(urlHandle, CURLUPART_PATH, &path, 0) == CURLUE_OK && path) {
-	        char *src = path;
-	        char *dst = path;
-	        while (*src) {
-	            *dst++ = *src;
-	            if (*src == '/') {
-	                while (*(src + 1) == '/') {
-	                    src++;
-	                }
-	            }
-	            src++;
-	        }
-	        *dst = '\0';
-	        curl_url_set(urlHandle, CURLUPART_PATH, path, 0);
-	        curl_free(path);
-	    }
+	if (curl_url_get(urlHandle, CURLUPART_PATH, &path, 0) == CURLUE_OK && path) {
+		char *src = path;
+		char *dst = path;
+		while (*src) {
+			*dst++ = *src;
+			if (*src == '/') {
+				while (*(src + 1) == '/') {
+					src++;
+				}
+			}
+			src++;
+		}
+		*dst = '\0';
+		curl_url_set(urlHandle, CURLUPART_PATH, path, 0);
+		curl_free(path);
+	}
 
-	    curlResultCode = curl_url_get(urlHandle, CURLUPART_URL, &normalizedUrl, 0);
-	    curl_url_cleanup(urlHandle);
+	curlResultCode = curl_url_get(urlHandle, CURLUPART_URL, &normalizedUrl, 0);
+	curl_url_cleanup(urlHandle);
 
-	    if (curlResultCode != CURLUE_OK) {
-	        return 1;
-	    }
+	if (curlResultCode != CURLUE_OK) {
+		return 1;
+	}
 
-	    free(*urlPtr);
-	    *urlPtr = normalizedUrl;
+	free(*urlPtr);
+	*urlPtr = normalizedUrl;
 
-	    return 0;
+	return 0;
 }
 
 int searchedAlready(Context *ctx, const char *categoryString, const char *itemString) {
