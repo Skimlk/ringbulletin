@@ -93,6 +93,7 @@ bool isBinary(Memory *memory) {
 
 bool isIcon(Memory *memory) {
 	if( /* File signature for an ICO file */
+		memory->size >= 4 &&
 		memory->data[0] == 0x00 && 
 		memory->data[1] == 0x00 && 
         memory->data[2] == 0x01 && 
