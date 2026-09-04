@@ -12,6 +12,7 @@ typedef struct Context {
 	char *postsDirectoryPath;
 	char *viewsDirectoryPath;
 	char *iconsDirectoryPath;
+	char *faviconsDirectoryPath;
 	char *cssDirectoryPath;
 	char *boardJsonUrl;
 	char *boardHtmlUrl;

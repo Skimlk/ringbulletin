@@ -28,7 +28,7 @@ typedef struct {
 
 extern File readFile(const char *directory, const char *filename);
 extern char *readFileStr(const char *directory, const char *filename);
-extern int writeFile(const char *content, const int *size, const char *directory, const char *filename);
+extern int writeFile(const char *content, const size_t *size, const char *directory, const char *filename);
 extern int copyFile(const char *sourceDirectory, const char *sourceFilename,
     const char *destinationDirectory, const char *destinationFilename);
 extern int removeFile(const char *directory, const char *filename);

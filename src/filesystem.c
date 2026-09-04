@@ -71,7 +71,7 @@ char *readFileStr(const char *directory, const char *filename) {
 	return fileString;
 }
 
-int writeFile(const char *content, const int *size, const char *directory, const char *filename) {
+int writeFile(const char *content, const size_t *size, const char *directory, const char *filename) {
 	if(!content) {
 		fprintf(stderr, "Content is null or empty.\n");
 		return 1;
@@ -123,7 +123,7 @@ int copyFile(
 	const char *destinationDirectory, const char *destinationFilename
 ) {
 	File sourceContent = readFile(sourceDirectory, sourceFilename);
-	int success = writeFile(sourceContent.content, (int *)&sourceContent.size, destinationDirectory, destinationFilename);
+	int success = writeFile(sourceContent.content, &sourceContent.size, destinationDirectory, destinationFilename);
 	free(sourceContent.content);
 
 	if(success) {

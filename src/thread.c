@@ -23,6 +23,7 @@ int writePost(char *directory, htmlDocPtr postDoc, time_t postTimestamp, XXH64_h
 
     int size = 0;
     htmlDocDumpMemoryFormat(postDoc, &postCharBuffer, &size, 0);
+    size_t writeSize = (size_t)size;
 
     if(!postCharBuffer) {
         printf("Post was not serialized\n");
@@ -30,7 +31,7 @@ int writePost(char *directory, htmlDocPtr postDoc, time_t postTimestamp, XXH64_h
         goto cleanup;
     }
 
-    writeFile((const char *)postCharBuffer, &size, directory, filename);
+    writeFile((const char *)postCharBuffer, &writeSize, directory, filename);
 
 cleanup:
     xmlFree(postCharBuffer);

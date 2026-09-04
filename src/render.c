@@ -150,6 +150,7 @@ int writeList(Context *ctx) {
     xmlChar *postSerialized;
     int size = 0;
     htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 0); 
+    size_t writeSize = (size_t)size;
 
     if(!postSerialized) {
         printf("Post was not serialized\n");
@@ -157,7 +158,7 @@ int writeList(Context *ctx) {
         goto cleanup;
     }   
 
-    writeFile((const char *)postSerialized, &size, ctx->viewsDirectoryPath, "list.html");
+    writeFile((const char *)postSerialized, &writeSize, ctx->viewsDirectoryPath, "list.html");
 
 cleanup:
     xmlFree(postSerialized);
@@ -214,8 +215,9 @@ void writeConnectPage(Context *ctx) {
 	xmlChar *serialized = NULL;
 	int size = 0;
 	htmlDocDumpMemoryFormat(doc, &serialized, &size, 1);
+    size_t writeSize = (size_t)size;
 
-	writeFile((const char *)serialized, &size, ctx->viewsDirectoryPath, "connect.html");
+	writeFile((const char *)serialized, &writeSize, ctx->viewsDirectoryPath, "connect.html");
 
 	xmlFreeDoc(doc);
 	xmlFree(serialized);
@@ -249,13 +251,14 @@ int writeBulletin(Context *ctx) {
     xmlChar *postSerialized;
     int size = 0;
     htmlDocDumpMemoryFormat(doc, &postSerialized, &size, 1); 
+    size_t writeSize = (size_t)size;
 
     if(!postSerialized) {
         printf("Post was not serialized\n");
     }
     
     writeConnectPage(ctx);
-    writeFile((const char *)postSerialized, &size, ctx->config->boardGenerationDirectory, "board.html");
+    writeFile((const char *)postSerialized, &writeSize, ctx->config->boardGenerationDirectory, "board.html");
 
     xmlFreeDoc(doc);
     xmlFree(postSerialized);

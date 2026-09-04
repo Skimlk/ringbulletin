@@ -8,6 +8,7 @@ typedef struct {
 	char *title;
 	char *link;
 	char *domain;
+	char *baseUrl;
 	char *description;
 	XXH64_hash_t normalizedTitleHash;
 	char *normalizedTitleHashString;

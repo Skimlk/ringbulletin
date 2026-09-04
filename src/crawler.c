@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include <cjson/cJSON.h>
 #include <curl/curl.h>
@@ -10,55 +11,125 @@
 #include "feed.h"
 #include "json.h"
 
-struct memory {
-	char *memory;
-	size_t size;
-};
-
-static size_t writeMemory(char *contents, size_t size, size_t nmemb, void *userp) {
-	struct memory *mem = userp;
+static size_t writeString(char *contents, size_t size, size_t nmemb, void *userp) {
+	Memory *mem = userp;
 	size_t total = size * nmemb;
 
-	char *ptr = realloc(mem->memory, mem->size + total + 1);	
+	char *ptr = realloc(mem->data, mem->size + total + 1);	
 	if(!ptr) {
 		printf("Not enough memory.\n");
 		return 0;
 	}
-	mem->memory = ptr;
-	memcpy(&(mem->memory[mem->size]), contents, total);
+
+	mem->data = ptr;
+	memcpy(&(mem->data[mem->size]), contents, total);
 	mem->size += total;
-	mem->memory[mem->size] = 0;
+	mem->data[mem->size] = 0;
+
 	return total;	
 }
 
-char *fetch(char *URL) {
-	struct memory chunk = {malloc(1), 0};
+static size_t writeBinary(char *contents, size_t size, size_t nmemb, void *userp) {
+	Memory *mem = userp;
+	size_t total = size * nmemb;
 
-	char *document = NULL;
+	char *ptr = realloc(mem->data, mem->size + total);	
+	if(!ptr) {
+		printf("Not enough memory.\n");
+		return 0;
+	}
+
+	mem->data = ptr;
+	memcpy(&(mem->data[mem->size]), contents, total);
+	mem->size += total;
+	
+	return total;
+}
+
+Memory *curl(char *URL, size_t (*writeCallback)(char *, size_t, size_t, void *)) {
+	Memory *chunk = malloc(sizeof(Memory));
+	chunk->data = malloc(1);
+	chunk->size = 0;
+
 	CURLcode res;
 	curl_global_init(CURL_GLOBAL_ALL);
 	CURL *handle = curl_easy_init();
 
 	curl_easy_setopt(handle, CURLOPT_URL, URL);
-	curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, writeMemory);
-	curl_easy_setopt(handle, CURLOPT_WRITEDATA, &chunk);
+	curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, writeCallback);
+	curl_easy_setopt(handle, CURLOPT_WRITEDATA, chunk);
 	curl_easy_setopt(handle, CURLOPT_PROTOCOLS_STR, "http,https");
 	curl_easy_setopt(handle, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
 
 	res = curl_easy_perform(handle);
-
 	if(res != CURLE_OK) {
 		fprintf(stderr, "curl_easy_perform() failed: %s\n",
 			curl_easy_strerror(res));
-		free(chunk.memory);
-	} else {
-		document = chunk.memory;
+		free(chunk->data);
+		free(chunk);
+		chunk = NULL;
 	}
 
 	curl_easy_cleanup(handle);
 	curl_global_cleanup();
 
-	return document;
+	return chunk;
+}
+
+char *fetch(char *URL) { 
+	Memory *result = curl(URL, writeString);
+	if(result != NULL) {
+		char *content = strdup(result->data);
+		free(result);
+		return content;
+	}
+	return NULL;
+}
+
+//https://github.com/curl/curl/blob/f190aa8ecea728e6ce7fb7a6250e03df4d4eaca5/src/tool_cb_wrt.c#L313
+bool isBinary(Memory *memory) {
+	return memchr(memory->data, 0, memory->size) != NULL;
+}
+
+Memory *fetchBinary(char *URL) { 
+	Memory *memory = curl(URL, writeBinary);
+	if(memory == NULL)
+		return NULL;
+
+	if(!isBinary(memory)) {
+		free(memory->data);
+		free(memory);
+		return NULL;
+	}
+
+	return memory;
+}
+
+bool isIcon(Memory *memory) {
+	if( /* File signature for an ICO file */
+		memory->data[0] == 0x00 && 
+		memory->data[1] == 0x00 && 
+        memory->data[2] == 0x01 && 
+		memory->data[3] == 0x00
+	) {
+        return true;
+    }
+
+	return false;
+}
+
+Memory *fetchIcon(char *URL) {
+	Memory *binary = fetchBinary(URL);
+	if(binary == NULL)
+		return NULL;
+
+	if(!isIcon(binary)) {
+		free(binary->data);
+		free(binary);
+		return NULL;
+	}
+
+	return binary;
 }
 
 char *getDomainFromLink(const char *link) {
@@ -82,6 +153,52 @@ char *getDomainFromLink(const char *link) {
 	curl_free(host);
 	curl_url_cleanup(urlHandle);
 	return domain;
+}
+
+char *getBaseUrlFromLink(const char *link) {
+    if (!link || *link == '\0')
+        return NULL;
+
+    CURLU *urlHandle = curl_url();
+    if (!urlHandle)
+        return NULL;
+
+    char *scheme = NULL;
+    char *host = NULL;
+    char *port = NULL;
+    char *baseUrl = NULL;
+
+    if (
+        curl_url_set(urlHandle, CURLUPART_URL, link, 0) == CURLUE_OK &&
+        curl_url_get(urlHandle, CURLUPART_SCHEME, &scheme, 0) == CURLUE_OK &&
+        curl_url_get(urlHandle, CURLUPART_HOST, &host, 0) == CURLUE_OK &&
+        scheme[0] != '\0' &&
+        host[0] != '\0'
+    ) {
+        curl_url_get(urlHandle, CURLUPART_PORT, &port, 0);
+        size_t len = strlen(scheme) + strlen(host) + 4; 
+        
+        if (port) {
+            len += strlen(port) + 1;
+        }
+
+        baseUrl = malloc(len);
+
+        if (baseUrl) {
+            if (port) {
+                snprintf(baseUrl, len, "%s://%s:%s", scheme, host, port);
+            } else {
+                snprintf(baseUrl, len, "%s://%s", scheme, host);
+            }
+        }
+    }
+
+    curl_free(scheme);
+    curl_free(host);
+    curl_free(port);
+    curl_url_cleanup(urlHandle);
+
+    return baseUrl;
 }
 
 int normalizeUrl(char **urlPtr) {

@@ -81,6 +81,7 @@ int hydratePostContent(xmlDocPtr doc, xmlNodePtr postNode, PostData *post) {
 	else if (xmlStrcmp(postNode->name, BAD_CAST "link") == 0) {
 		post->link = strdup((char *)element);
 		post->domain = getDomainFromLink(post->link);
+		post->baseUrl = getBaseUrlFromLink(post->link);
 	}
 
 	else if (xmlStrcmp(postNode->name, BAD_CAST "pubDate") == 0) {
@@ -143,7 +144,29 @@ int processFeed(char *feed, Context *ctx, char *url) {
 		post->normalizedTitleHashString = malloc(sizeof(char) * hashMaxLength);
 		snprintf(post->normalizedTitleHashString, hashMaxLength, "%016" PRIx64, post->normalizedTitleHash);
 
-		post->iconPath = strdup("../icons/default-icon.ico");
+		char *iconPath;
+		char *iconRelPath;
+		asprintf(&iconPath, "%s/%s.ico", ctx->faviconsDirectoryPath, post->domain);
+		asprintf(&iconRelPath, "../icons/favicons/%s.ico", post->domain);
+		
+		if(fileExists(iconPath))
+			post->iconPath = strdup(iconRelPath);
+		else {
+			char *iconUrl;
+			asprintf(&iconUrl, "%s/favicon.ico", post->baseUrl);
+			Memory *icon = fetchIcon(iconUrl);
+			free(iconUrl);
+			
+			if(icon != NULL) {
+				writeFile(icon->data, &icon->size, NULL, iconPath);
+				post->iconPath = strdup(iconRelPath);
+			} else {
+				post->iconPath = strdup("../icons/default-icon.ico");
+			}
+		}
+		
+		free(iconPath);
+		free(iconRelPath);
 
 		if (i == 0) copyPostData(latestPost, post);
 	

@@ -85,6 +85,7 @@ int generateBoard(int regenerateFlag) {
 	asprintf(&ctx.postsDirectoryPath, "%s/posts/", config.boardGenerationDirectory);
 	asprintf(&ctx.viewsDirectoryPath, "%s/views/", config.boardGenerationDirectory);
 	asprintf(&ctx.iconsDirectoryPath, "%s/icons/", config.boardGenerationDirectory);
+	asprintf(&ctx.faviconsDirectoryPath, "%s/favicons/", ctx.iconsDirectoryPath);
 	asprintf(&ctx.cssDirectoryPath, "%s/css/", config.boardGenerationDirectory);
 
 	asprintf(&ctx.boardJsonUrl, "%s/%s", config.boardGenerationUrl, "board.json");
@@ -106,7 +107,8 @@ int generateBoard(int regenerateFlag) {
 		ctx.postsDirectoryPath,
 		ctx.viewsDirectoryPath,
 		ctx.iconsDirectoryPath,
-		ctx.cssDirectoryPath
+		ctx.faviconsDirectoryPath,
+		ctx.cssDirectoryPath,
 	};
 
 	for(size_t i = 0; i < sizeof(generationDirectories)/sizeof(char *); i++) {
@@ -143,6 +145,7 @@ cleanup:
 	free(ctx.postsDirectoryPath);
 	free(ctx.viewsDirectoryPath);
 	free(ctx.iconsDirectoryPath);
+	free(ctx.faviconsDirectoryPath);
 	free(ctx.cssDirectoryPath);
 	cJSON_Delete(boardJson);
 	return ret;

@@ -9,6 +9,7 @@ PostData *initalizePost() {
     post->title = NULL;
     post->link = NULL;
     post->domain = NULL;
+    post->baseUrl = NULL;
     post->description = NULL;
     post->normalizedTitleHashString = NULL;
     post->pubDateFormattedString = NULL;
@@ -21,6 +22,7 @@ void copyPostData(PostData *newPost, PostData *originalPost) {
     newPost->title = strdup(originalPost->title);
     newPost->link = strdup(originalPost->link);
 	newPost->domain = strdup(originalPost->domain);
+	newPost->baseUrl = strdup(originalPost->baseUrl);
 	newPost->description = strdup(originalPost->description);
 	newPost->normalizedTitleHash = originalPost->normalizedTitleHash;
 	newPost->normalizedTitleHashString = strdup(originalPost->normalizedTitleHashString);
@@ -33,6 +35,7 @@ void freePostData(PostData *post) {
     free(post->title);
     free(post->link);
     free(post->domain);
+    free(post->baseUrl);
     free(post->description);
     free(post->normalizedTitleHashString);
     free(post->pubDateFormattedString);
