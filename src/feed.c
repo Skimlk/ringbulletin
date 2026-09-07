@@ -107,6 +107,7 @@ int processFeed(char *feed, Context *ctx, char *url) {
 	PostData *latestPost = initalizePost();
 	xmlXPathContextPtr docXPathContext = NULL;
 	xmlXPathObjectPtr itemNodes = NULL;
+	char *iconPath = NULL;
 
 	if (!doc) {
 		fprintf(stderr, "Document not parsed successfully.\n");
@@ -145,33 +146,38 @@ int processFeed(char *feed, Context *ctx, char *url) {
 		post->normalizedTitleHashString = malloc(sizeof(char) * hashMaxLength);
 		snprintf(post->normalizedTitleHashString, hashMaxLength, "%016" PRIx64, post->normalizedTitleHash);
 
-		char *iconPath = NULL;
-		char *iconRelPath = NULL;
-		asprintf(&iconPath, "%s/%s.ico", ctx->faviconsDirectoryPath, post->domain);
-		asprintf(&iconRelPath, "../icons/favicons/%s.ico", post->domain);
-		
-		if(!fileExists(iconPath)) {
-			char *iconUrl = NULL;
-			asprintf(&iconUrl, "%s/favicon.ico", post->baseUrl);
-			Memory *icon = fetchIcon(iconUrl);
-			free(iconUrl);
-			
-			if(icon != NULL) {
-				writeFile(icon->data, &icon->size, NULL, iconPath);
-				free(icon->data);
-				free(icon);
-			} else {
-				char *defaultIconPath = NULL;
-				asprintf(&defaultIconPath, "%s/default-icon.ico", ctx->iconsDirectoryPath);
-				symlink(defaultIconPath, iconPath);
-				free(defaultIconPath);
+		if(iconPath == NULL) {
+			char *specificIconPath = NULL;
+			char *specificIconRelPath = NULL;
+			asprintf(&specificIconPath, "%s/%s.ico", ctx->faviconsDirectoryPath, post->domain);
+			asprintf(&specificIconRelPath, "../icons/favicons/%s.ico", post->domain);
+
+			if(fileExists(specificIconPath)) { 
+				iconPath = strdup(specificIconRelPath);
 			}
+			else {
+				char *iconUrl = NULL;
+				asprintf(&iconUrl, "%s/favicon.ico", post->baseUrl);
+				Memory *icon = fetchIcon(iconUrl);
+				free(iconUrl);
+				
+				if(icon != NULL) {
+					writeFile(icon->data, &icon->size, NULL, specificIconPath);
+					iconPath = strdup(specificIconRelPath);
+					free(icon->data);
+					free(icon);
+				} else {
+					char *defaultIconRelPath = strdup("../icons/default-icon.ico");
+					iconPath = strdup(defaultIconRelPath);
+					free(defaultIconRelPath);
+				}
+			}
+
+			free(specificIconPath);
+			free(specificIconRelPath);
 		}
 
-		post->iconPath = strdup(iconRelPath);
-		
-		free(iconPath);
-		free(iconRelPath);
+		post->iconPath = strdup(iconPath);
 
 		if (i == 0) copyPostData(latestPost, post);
 	
@@ -190,6 +196,7 @@ int processFeed(char *feed, Context *ctx, char *url) {
 	updateJsonHistoryItemProperty("feeds", url, "lastSearchedPostDate", &pubDateUnixDoubleHelper, addDoubleToJsonItem);
 
 cleanup:
+	free(iconPath);
 	xmlXPathFreeObject(itemNodes);
 	xmlXPathFreeContext(docXPathContext);
 	xmlFreeDoc(doc);
