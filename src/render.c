@@ -36,9 +36,8 @@ xmlNodePtr addElement(xmlNodePtr parent, const char *tag, const char *text, cons
     else
         node = xmlNewChild(parent, NULL, BAD_CAST tag, NULL);
 
-    if (text) {
+    if (text)
         xmlNodeSetContent(node, BAD_CAST text);
-    }
     
     if (id)
         xmlNewProp(node, BAD_CAST "id", BAD_CAST id);
@@ -66,14 +65,17 @@ void addNavbarButton(xmlNodePtr parent, char *linkPath, char *iconId) {
 
 xmlNodePtr createPostElement(xmlNodePtr parent, const PostData *post, const char *class) {
     xmlNodePtr postElement = addElement(parent, "div", NULL, NULL, class);
-        xmlNodePtr icon = addElement(postElement, "img", NULL, NULL, "post-icon");
-                xmlNewProp(icon, BAD_CAST "src", BAD_CAST post->iconPath);
+        xmlNodePtr iconLink = xmlNewChild(postElement, NULL, BAD_CAST "a", NULL);
+            xmlNewProp(iconLink, BAD_CAST "href", BAD_CAST post->baseUrl);
+            xmlNodePtr icon = addElement(iconLink, "img", NULL, NULL, "post-icon");
+                    xmlNewProp(icon, BAD_CAST "src", BAD_CAST post->iconPath);
         xmlNodePtr postHeader = addElement(postElement, "div", NULL, NULL, "post-header");
             xmlNodePtr postTitle = addElement(postHeader, "span", NULL, NULL, "post-title"); 
                 xmlNodePtr postLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST post->title);
                     xmlNewProp(postLink, BAD_CAST "href", BAD_CAST post->link);
-                    xmlNewProp(postLink, BAD_CAST "target", BAD_CAST "_blank");
-            addElement(postHeader, "span", post->domain, NULL, "post-url");
+            xmlNodePtr postUrl = addElement(postHeader, "span", NULL, NULL, "post-url"); 
+                xmlNodePtr postUrlLink = xmlNewChild(postUrl, NULL, BAD_CAST "a", BAD_CAST post->domain);
+                    xmlNewProp(postUrlLink, BAD_CAST "href", BAD_CAST post->baseUrl);
             addElement(postHeader, "span", post->pubDateFormattedString, NULL, "post-date");
         
         addElement(postElement, "blockquote", post->description, NULL, "post-description");
