@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <unistd.h>
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -144,26 +145,30 @@ int processFeed(char *feed, Context *ctx, char *url) {
 		post->normalizedTitleHashString = malloc(sizeof(char) * hashMaxLength);
 		snprintf(post->normalizedTitleHashString, hashMaxLength, "%016" PRIx64, post->normalizedTitleHash);
 
-		char *iconPath;
-		char *iconRelPath;
+		char *iconPath = NULL;
+		char *iconRelPath = NULL;
 		asprintf(&iconPath, "%s/%s.ico", ctx->faviconsDirectoryPath, post->domain);
 		asprintf(&iconRelPath, "../icons/favicons/%s.ico", post->domain);
 		
-		if(fileExists(iconPath))
-			post->iconPath = strdup(iconRelPath);
-		else {
-			char *iconUrl;
+		if(!fileExists(iconPath)) {
+			char *iconUrl = NULL;
 			asprintf(&iconUrl, "%s/favicon.ico", post->baseUrl);
 			Memory *icon = fetchIcon(iconUrl);
 			free(iconUrl);
 			
 			if(icon != NULL) {
 				writeFile(icon->data, &icon->size, NULL, iconPath);
-				post->iconPath = strdup(iconRelPath);
+				free(icon->data);
+				free(icon);
 			} else {
-				post->iconPath = strdup("../icons/default-icon.ico");
+				char *defaultIconPath = NULL;
+				asprintf(&defaultIconPath, "%s/default-icon.ico", ctx->iconsDirectoryPath);
+				symlink(defaultIconPath, iconPath);
+				free(defaultIconPath);
 			}
 		}
+
+		post->iconPath = strdup(iconRelPath);
 		
 		free(iconPath);
 		free(iconRelPath);
