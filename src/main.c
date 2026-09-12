@@ -1,15 +1,11 @@
-/*
-	Ring Bulletin:
-		- Monitors selected RSS feeds for intent to participate in bulletin board
-		- Creates/edits HTML page based on participation
-*/
-
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
+#include <errno.h>
 
 #include <cjson/cJSON.h>
 
@@ -21,9 +17,11 @@
 #include "prompt.h"
 #include "render.h"
 #include "stringutils.h"
+#include "scheduling.h"
 
 #define CONFIG_JSON_PATH "config.json"
 #define BOARD_JSON_PATH "board.json"
+
 #define ANSI_BOLD "\033[1m"
 #define ANSI_BOLD_UNDERLINE "\033[1;4m"
 #define ANSI_RESET "\033[0m"
@@ -68,7 +66,10 @@ void printUsageCommands(int cur, char **argv, Command *commands, size_t commandC
 	}
 }
 
-int generateBoard(int regenerateFlag) {
+int generateBoard(char **argv, int regenerateFlag) {
+	if(alreadyRunning(argv[0]))
+		return 1;
+
 	cJSON *boardJson;
 	int ret = 0;
 
@@ -162,9 +163,9 @@ cleanup:
 	return ret;
 }
 
-int regenerate() {
+int regenerate(char **argv) {
 	bool shouldRegenerate = true;
-	return generateBoard(shouldRegenerate);
+	return generateBoard(argv, shouldRegenerate);
 }
 
 int listArrayOperation(cJSON *propertyJson) {
@@ -233,65 +234,118 @@ cleanup:
 	return ret;
 }
 
-int init(char **argv) {
-	bool generateConfig = true;
-	if(fileExists(CONFIG_JSON_PATH))
-		generateConfig = boolInputPrompt("'config.json' already exists, would you like to replace it?", false);
+int initConfig() {
+	if(!overwriteFilePrompt(CONFIG_JSON_PATH))
+		return 0;
 
-	if(generateConfig) {
-		cJSON *configJson = cJSON_CreateObject();
+	cJSON *configJson = cJSON_CreateObject();
 
-		char *boardGenerationUrl = stringInputPrompt("Enter a board generation URL [Ex: https://example.com/ringbulletin/]", NULL);
-		cJSON_AddStringToObject(configJson, "boardGenerationUrl", boardGenerationUrl);
-		free(boardGenerationUrl);
+	char *boardGenerationUrl = stringInputPrompt("Enter a board generation URL [Ex: https://example.com/ringbulletin/]", NULL);
+	cJSON_AddStringToObject(configJson, "boardGenerationUrl", boardGenerationUrl);
+	free(boardGenerationUrl);
 
-		char *boardGenerationDirectory = stringInputPrompt("Enter a board generation directory", "./static/");
-		cJSON_AddStringToObject(configJson, "boardGenerationDirectory", boardGenerationDirectory);
-		free(boardGenerationDirectory);
-		
-		int defaultSearchDepth = 4;
-		int searchDepth = intInputPrompt("Enter a peer search depth", &defaultSearchDepth);
-		cJSON_AddNumberToObject(configJson, "searchDepth", searchDepth);
-		
-		char *theme = stringInputPrompt("Enter a theme", "yotsuba");
-		cJSON_AddStringToObject(configJson, "theme", theme);
-		free(theme);
+	char *boardGenerationDirectory = stringInputPrompt("Enter a board generation directory", "./static/");
+	cJSON_AddStringToObject(configJson, "boardGenerationDirectory", boardGenerationDirectory);
+	free(boardGenerationDirectory);
 	
-		writeJson(configJson, NULL, CONFIG_JSON_PATH);
-		cJSON_Delete(configJson);
+	int defaultSearchDepth = 4;
+	int searchDepth = intInputPrompt("Enter a peer search depth", &defaultSearchDepth);
+	cJSON_AddNumberToObject(configJson, "searchDepth", searchDepth);
+	
+	char *theme = stringInputPrompt("Enter a theme", "yotsuba");
+	cJSON_AddStringToObject(configJson, "theme", theme);
+	free(theme);
+
+	writeJson(configJson, NULL, CONFIG_JSON_PATH);
+	cJSON_Delete(configJson);
+
+	return 0;
+}
+
+int initBoard(char **argv) {
+	if(!overwriteFilePrompt(BOARD_JSON_PATH))
+		return 0;
+	
+	cJSON *boardJson = cJSON_CreateObject();
+	
+	char *boardTitle = stringInputPrompt("Enter a board title", NULL);
+	cJSON_AddStringToObject(boardJson, "title", boardTitle);
+	free(boardTitle);
+
+	cJSON_AddItemToObject(boardJson, "peers", cJSON_CreateArray());
+	cJSON_AddItemToObject(boardJson, "feeds", cJSON_CreateArray());
+	writeJson(boardJson, NULL, BOARD_JSON_PATH);
+	cJSON_Delete(boardJson);
+
+	char *peerArgs = stringInputPrompt("Enter peer board.json URLs separated by spaces", "");
+	char *addPeerArgCommand = NULL;
+	asprintf(&addPeerArgCommand, "%s peer add %s > /dev/null 2>&1", argv[0], peerArgs);
+	system(addPeerArgCommand);
+	free(addPeerArgCommand);
+	free(peerArgs);
+
+	char *feedArgs = stringInputPrompt("Enter RSS feed URLs to subscribe to separated by spaces", "");
+	char *addFeedArgCommand = NULL;
+	asprintf(&addFeedArgCommand, "%s feed add %s > /dev/null 2>&1", argv[0], feedArgs);
+	system(addFeedArgCommand);
+	free(addFeedArgCommand);
+	free(feedArgs);
+
+	return 0;
+}
+
+int initCronScheduling(char **argv) {
+	if(!hasWriteAccess(CRON_DIR_PATH)) {
+		char *privilegeElevationPrograms[] = {"sudo", "doas"};
+		for(size_t i = 0; i < sizeof(privilegeElevationPrograms) / sizeof(char *); i++)
+			execlp(privilegeElevationPrograms[i], privilegeElevationPrograms[i], argv[0], "init", "scheduling", NULL);
+    	
+		printf("Permission denied: cannot write to '%s'.\n", CRON_DIR_PATH);
+		return 1;
 	}
 
-	bool generateBoard = true;
-	if(fileExists(BOARD_JSON_PATH))
-		generateBoard = boolInputPrompt("'board.json' already exists, would you like to replace it?", false);
+	if(!overwriteFilePrompt(CRON_FILE_PATH))
+		return 0;	
 
-	if(generateBoard) {
-		cJSON *boardJson = cJSON_CreateObject();
-		
-		char *boardTitle = stringInputPrompt("Enter a board title", NULL);
-		cJSON_AddStringToObject(boardJson, "title", boardTitle);
-		free(boardTitle);
+	int defaultExecutionsPerHour = 2;
+	while(
+		createCronTab(argv[0], 
+			intInputPrompt("How many times would you like RingBulletin to execute per hour? [1-60]", &defaultExecutionsPerHour)
+		)
+	);
 
-		cJSON_AddItemToObject(boardJson, "peers", cJSON_CreateArray());
-		cJSON_AddItemToObject(boardJson, "feeds", cJSON_CreateArray());
-		writeJson(boardJson, NULL, BOARD_JSON_PATH);
-		cJSON_Delete(boardJson);
+	return 0;
+}
 
-		char *peerArgs = stringInputPrompt("Enter peer board.json URLs separated by spaces", "");
-		char *addPeerArgCommand = NULL;
-		asprintf(&addPeerArgCommand, "%s peer add %s > /dev/null 2>&1", argv[0], peerArgs);
-		system(addPeerArgCommand);
-		free(addPeerArgCommand);
-		free(peerArgs);
+int init(char **argv, int argc, int cur) {
+	Command commands[] = {
+		{"config", initConfig, "Setup board configuration"},
+		{"board", initBoard, "Setup board federation"},
+		{"scheduling", initCronScheduling, "Setup scheduled execution"},
+	};
 
-		char *feedArgs = stringInputPrompt("Enter RSS feed URLs to subscribe to separated by spaces", "");
-		char *addFeedArgCommand = NULL;
-		asprintf(&addFeedArgCommand, "%s feed add %s > /dev/null 2>&1", argv[0], feedArgs);
-		system(addFeedArgCommand);
-		free(addFeedArgCommand);
-		free(feedArgs);
+	size_t commandCount = sizeof(commands)/sizeof(Command);
+
+	if(argc == cur) {
+		for(size_t i = 0; i < commandCount; i++) {
+			char *runConfigurationPrompt = NULL;
+			asprintf(&runConfigurationPrompt, "Would you like to set up RingBulletin's %s?", commands[i].name);
+			if(boolInputPrompt(runConfigurationPrompt, true))
+				commands[i].function(argv, argc, cur+1);
+			free(runConfigurationPrompt);
+		}
+
+		return 0;
 	}
 
+	for(size_t i = 0; i < commandCount; i++) {
+		if(strcmp(strlwr(argv[cur]), commands[i].name) == 0) {
+			return commands[i].function(argv, argc, ++cur);
+		}
+	}
+
+	printUsageCommands(cur, argv, commands, commandCount);
+	
 	return 0;
 }
 
@@ -306,7 +360,7 @@ int feed(char **argv, int argc, int cur) {
 int main(int argc, char **argv) {
 	if(argc == 1) {
 		bool shouldRegenerate = false;
-		return generateBoard(shouldRegenerate);
+		return generateBoard(argv, shouldRegenerate);
 	}
 
 	Command commands[] = {

@@ -1,5 +1,10 @@
+#ifndef __USE_XOPEN
 #define __USE_XOPEN
+#endif
+
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -9,6 +14,13 @@
 #include <unistd.h>
 
 #include "filesystem.h"
+
+int hasWriteAccess(const char *filename) {
+	if(!fileExists(filename) || access(filename, W_OK) == -1)
+		return 0;
+
+	return 1;
+}
 
 int invalidFilename(const char *filename) {
 	if(strlen(filename) >= BASE_NAME_MAX) {

@@ -26,6 +26,7 @@ typedef struct {
     void *seed;
 } Pattern;
 
+extern int hasWriteAccess(const char *filename);
 extern File readFile(const char *directory, const char *filename);
 extern char *readFileStr(const char *directory, const char *filename);
 extern int writeFile(const char *content, const size_t *size, const char *directory, const char *filename);

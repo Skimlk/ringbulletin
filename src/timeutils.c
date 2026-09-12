@@ -1,5 +1,10 @@
+#ifndef __USE_XOPEN
 #define __USE_XOPEN
+#endif
+
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 #include <string.h>
 #include <stdlib.h>

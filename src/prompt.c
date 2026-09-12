@@ -6,6 +6,7 @@
 
 #include "prompt.h"
 #include "stringutils.h"
+#include "filesystem.h"
 
 char *getInput() {
 	char *input = NULL;
@@ -71,6 +72,19 @@ bool boolInputPrompt(char *message, bool defaultInput) {
 
 	free(input);
 	return defaultInput;
+}
+
+bool overwriteFilePrompt(char *filename) {
+	bool ret = false;
+
+	if(fileExists(filename)) {
+		char *overwriteFilePromptString = NULL;
+		asprintf(&overwriteFilePromptString, "'%s' already exists, would you like to replace it?", filename);
+		ret = boolInputPrompt(overwriteFilePromptString, false);
+		free(overwriteFilePromptString);
+	}
+
+	return ret;
 }
 
 int intInputPrompt(char *message, int *defaultInput) {
