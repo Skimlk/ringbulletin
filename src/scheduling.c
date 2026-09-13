@@ -3,7 +3,6 @@
 #define _GNU_SOURCE
 #endif
 
-#include <stddef.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,10 +14,11 @@
 
 int alreadyRunning(char *processName) {
     int alreadyRunning = 0;
+    pid_t pid = getpid();
 
     char *pidofCheck = NULL;
-	asprintf(&pidofCheck, "pidof -x %s > /dev/null 2>&1", processName);
-	if(system(pidofCheck) == 0) {
+	asprintf(&pidofCheck, "pidof -xo %d %s > /dev/null 2>&1", pid, processName);
+	if(WEXITSTATUS(system(pidofCheck)) == 0) {
 		printf("%s is already running\n", processName);
         alreadyRunning = 1;
 	}
