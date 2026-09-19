@@ -129,6 +129,35 @@ int processFeed(char *feed, Context *ctx, char *url) {
 		goto cleanup;
 	}
 
+	char *specificIconPath = NULL;
+	char *specificIconRelPath = NULL;
+	char *feedDomain = getDomainFromLink(url);
+	char *feedBaseUrl = getBaseUrlFromLink(url);
+	asprintf(&specificIconPath, "%s/%s.ico", ctx->faviconsDirectoryPath, feedDomain);
+	asprintf(&specificIconRelPath, "../icons/favicons/%s.ico", feedDomain);
+
+	if(fileExists(specificIconPath)) { 
+		iconPath = strdup(specificIconRelPath);
+	}
+	else {
+		char *iconUrl = NULL;
+		asprintf(&iconUrl, "%s/favicon.ico", feedBaseUrl);
+		Memory *icon = fetchIcon(iconUrl);
+		free(iconUrl);
+		
+		if(icon != NULL) {
+			writeFile(icon->data, &icon->size, NULL, specificIconPath);
+			iconPath = strdup(specificIconRelPath);
+			free(icon->data);
+			free(icon);
+		}
+	}
+
+	free(feedDomain);
+	free(feedBaseUrl);
+	free(specificIconPath);
+	free(specificIconRelPath);
+
 	for (int i = 0; i < itemNodes->nodesetval->nodeNr; i++) {
 		PostData *post = initalizePost();
 		
@@ -146,38 +175,7 @@ int processFeed(char *feed, Context *ctx, char *url) {
 		post->normalizedTitleHashString = malloc(sizeof(char) * hashMaxLength);
 		snprintf(post->normalizedTitleHashString, hashMaxLength, "%016" PRIx64, post->normalizedTitleHash);
 
-		if(iconPath == NULL) {
-			char *specificIconPath = NULL;
-			char *specificIconRelPath = NULL;
-			asprintf(&specificIconPath, "%s/%s.ico", ctx->faviconsDirectoryPath, post->domain);
-			asprintf(&specificIconRelPath, "../icons/favicons/%s.ico", post->domain);
-
-			if(fileExists(specificIconPath)) { 
-				iconPath = strdup(specificIconRelPath);
-			}
-			else {
-				char *iconUrl = NULL;
-				asprintf(&iconUrl, "%s/favicon.ico", post->baseUrl);
-				Memory *icon = fetchIcon(iconUrl);
-				free(iconUrl);
-				
-				if(icon != NULL) {
-					writeFile(icon->data, &icon->size, NULL, specificIconPath);
-					iconPath = strdup(specificIconRelPath);
-					free(icon->data);
-					free(icon);
-				} else {
-					char *defaultIconRelPath = strdup("../icons/default-icon.ico");
-					iconPath = strdup(defaultIconRelPath);
-					free(defaultIconRelPath);
-				}
-			}
-
-			free(specificIconPath);
-			free(specificIconRelPath);
-		}
-
-		post->iconPath = strdup(iconPath);
+		post->iconPath = (iconPath) ? strdup(iconPath) : NULL;
 
 		if (i == 0) copyPostData(latestPost, post);
 	

@@ -65,10 +65,12 @@ void addNavbarButton(xmlNodePtr parent, char *linkPath, char *iconId) {
 
 xmlNodePtr createPostElement(xmlNodePtr parent, const PostData *post, const char *class) {
     xmlNodePtr postElement = addElement(parent, "div", NULL, NULL, class);
-        xmlNodePtr iconLink = xmlNewChild(postElement, NULL, BAD_CAST "a", NULL);
-            xmlNewProp(iconLink, BAD_CAST "href", BAD_CAST post->baseUrl);
-            xmlNodePtr icon = addElement(iconLink, "img", NULL, NULL, "post-icon");
-                    xmlNewProp(icon, BAD_CAST "src", BAD_CAST post->iconPath);
+        if(post->iconPath != NULL) {
+            xmlNodePtr iconLink = xmlNewChild(postElement, NULL, BAD_CAST "a", NULL);
+                xmlNewProp(iconLink, BAD_CAST "href", BAD_CAST post->baseUrl);
+                xmlNodePtr icon = addElement(iconLink, "img", NULL, NULL, "post-icon");
+                        xmlNewProp(icon, BAD_CAST "src", BAD_CAST post->iconPath);
+        }
         xmlNodePtr postHeader = addElement(postElement, "div", NULL, NULL, "post-header");
             xmlNodePtr postTitle = addElement(postHeader, "span", NULL, NULL, "post-title"); 
                 xmlNodePtr postLink = xmlNewChild(postTitle, NULL, BAD_CAST "a", BAD_CAST post->title);

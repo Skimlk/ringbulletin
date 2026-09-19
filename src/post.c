@@ -28,7 +28,7 @@ void copyPostData(PostData *newPost, PostData *originalPost) {
 	newPost->normalizedTitleHashString = strdup(originalPost->normalizedTitleHashString);
 	newPost->pubDateUnix = originalPost->pubDateUnix;
 	newPost->pubDateFormattedString = strdup(originalPost->pubDateFormattedString);
-    newPost->iconPath = strdup(originalPost->iconPath);
+    newPost->iconPath = (originalPost->iconPath) ? strdup(originalPost->iconPath) : NULL;
 }
 
 void freePostData(PostData *post) {
