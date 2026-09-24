@@ -23,7 +23,7 @@ time_t extractTimeFromFilename(char *filename) {
 
 	timeString[i] = '\0';
 
-	    return (time_t)strtoll(timeString, NULL, 10);
+	return (time_t)strtoll(timeString, NULL, 10);
 }
 
 char *createTimestampedFilename(char *filename, char *seperator) {
@@ -41,20 +41,20 @@ char *createTimestampedFilename(char *filename, char *seperator) {
 }
 
 time_t getUnixTimestampFromTimeFormatString(char *timeFormatString) {
-	    struct tm timeStructHelper = {0};
+	struct tm timeStructHelper = {0};
 
-	    char *timeFormats[] = {
-	        "%a, %d %b %Y %H:%M:%S %z",
-	        "%a, %d %b %Y %H:%M:%S GMT",
-	    };
+	char *timeFormats[] = {
+		"%a, %d %b %Y %H:%M:%S %z",
+		"%a, %d %b %Y %H:%M:%S GMT",
+	};
 
-	    for(size_t i = 0; i < sizeof(timeFormats) / sizeof(char *); i++) {
-	        if(strptime(timeFormatString, timeFormats[i], &timeStructHelper) != NULL)
-				return mktime(&timeStructHelper);
-	    }
+	for(size_t i = 0; i < sizeof(timeFormats) / sizeof(char *); i++) {
+		if(strptime(timeFormatString, timeFormats[i], &timeStructHelper) != NULL)
+			return mktime(&timeStructHelper);
+	}
 
-	    fprintf(stderr, "Failed to parse date-time.\n");
-	    return 1;
+	fprintf(stderr, "Failed to parse date-time.\n");
+	return 1;
 }
 
 void getFormattedTimeStrForPost(time_t time, char *buffer, size_t size) {
