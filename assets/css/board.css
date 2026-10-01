@@ -102,16 +102,11 @@ a:active {
     border-radius: 50%;
     background-color: var(--color-navbar);
 
-    transition: background-color 0.2s ease;
     cursor: pointer;
 }
 
-.navbar-button:hover {
-    background-color: color-mix(
-        in srgb,
-        var(--color-navbar),
-        white 15%
-    );
+.navbar-button:hover .navbar-button-icon {
+    background-color: var(--color-post-title);
 }
 
 .navbar-button-icon {
@@ -121,6 +116,7 @@ a:active {
     height: 20px;
 
     background-color: var(--color-text);
+    transition: background-color 0.2s ease;
 
     -webkit-mask-position: center;
     mask-position: center;
@@ -426,6 +422,8 @@ hr {
     field-sizing: content;
     resize: none;
     overflow-y: hidden;
+
+    white-space: pre;
 }
 
 .connect-snippet {
